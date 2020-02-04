@@ -1,0 +1,17 @@
+{
+  "name": "AshokaBot2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "pdf.js-extract": "^0.1.4",
+    "sulla": "^1.1.3"
+  }
+}
