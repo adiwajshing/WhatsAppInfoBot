@@ -50,7 +50,8 @@ module.exports = class LanguageProcessor {
 			this.metadata = {
 				"admins": [],
 				"unknownCommandText": "unknown command {0}",
-				"maxRequestsPerSecond": 0.5
+				"maxRequestsPerSecond": 0.5,
+				"responseTimeSeconds": [0.5,3]
 			}
 			console.log("error in loading data: " + error)
 		}
@@ -125,7 +126,7 @@ module.exports = class LanguageProcessor {
 		}
 		const lcaseStr = str.toLowerCase()
 		var command = this.nonSpecificMap[lcaseStr]
-		var options = null
+		var options = []
 
 		if (command === undefined) {
 			command = this.optionMap[lcaseStr]
@@ -180,7 +181,7 @@ module.exports = class LanguageProcessor {
 				return Promise.reject("this function is unavailable at this time")
 			}
 			return this.customProcessor[answer](options)
-		} else if (options !== null) {
+		} else {
 			const txt = options.length > 0 ? options[0].toLowerCase() : ""
 			const optionValue = cmd.options[txt]
 
@@ -191,14 +192,15 @@ module.exports = class LanguageProcessor {
 				 		"Sorry, I can't answer for '" + options + "'\n" + 
 						"However, I can answer for the following options:\n" + Object.keys(cmd.options).join("\n")
 					)
-				}	
-			}
+				} else {
 
-			if (answer.includes("{1}")) {
+				}
+			} else if (answer.includes("{1}")) {
 				answer = answer.replace("{0}", options[0]).replace("{1}", optionValue)
 			} else {
 				answer = answer.replace("{0}", optionValue)
 			}
+			
 		}
 
 		return Promise.resolve(answer)
