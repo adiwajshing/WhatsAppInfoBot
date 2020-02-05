@@ -2,14 +2,13 @@ const sulla = require('sulla');
 
 module.exports = class Responder {
 
-	constructor(commands) {
-		this.commands = commands
+	constructor(languageProcessor) {
+		this.processor = processor
 		this.admins = {}
 		this.log = { }
-		this.requestsPerSecond = 0.5
 
-		for (var i in commands.metadata.admins) {
-			this.admins[ commands.metadata.admins[i] ] = true
+		for (var i in processor.metadata.admins) {
+			this.admins[ processor.metadata.admins[i] ] = true
 		}
 
 		setInterval (() => this.clearLog(), 10*60*1000)
@@ -40,8 +39,8 @@ module.exports = class Responder {
 	onMessageReceived (message) {
 		if (this.log[message.from]) {
 			const diff = new Date().getTime() - this.log[message.from]
-			console.log("diff:" + diff + ", " + (1000/this.commands.metadata.maxRequestsPerSecond) )
-			if (diff < (1000/this.commands.metadata.maxRequestsPerSecond) ) {
+			console.log("diff:" + diff + ", " + (1000/this.processor.metadata.maxRequestsPerSecond) )
+			if (diff < (1000/this.processor.metadata.maxRequestsPerSecond) ) {
 				console.log("too many requests from: " + message.from)
 				return
 			}
@@ -54,13 +53,13 @@ module.exports = class Responder {
 
 		if (this.admins[number] === true && message.body.includes(";")) {
 			try {
-				this.commands.executeFromString(message.body)
+				this.processor.executeFromString(message.body)
 				response = Promise.resolve("ok")
 			} catch (err) {
 				response = Promise.resolve(err)
 			}
 		} else {
-			response = this.commands.getResponse(message.body)
+			response = this.processor.getResponse(message.body)
 		}
 		
 		response.then ((str) => {
@@ -75,7 +74,7 @@ module.exports = class Responder {
 		return contact.split("@")[0]
 	}
 	sendMessageAfterDelay(toContact, message) {
-		const delayS = Math.random()*6 + 1.5
+		const delayS = Math.random()*4 + 1.5
 		setTimeout(() => this.sendMessage(toContact, message), delayS*1000)
 	}
 	sendMessage( toContact, message) {
