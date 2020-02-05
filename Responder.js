@@ -3,12 +3,12 @@ const sulla = require('sulla');
 module.exports = class Responder {
 
 	constructor(languageProcessor) {
-		this.processor = processor
+		this.processor = languageProcessor
 		this.admins = {}
 		this.log = { }
 
-		for (var i in processor.metadata.admins) {
-			this.admins[ processor.metadata.admins[i] ] = true
+		for (var i in languageProcessor.metadata.admins) {
+			this.admins[ languageProcessor.metadata.admins[i] ] = true
 		}
 
 		setInterval (() => this.clearLog(), 10*60*1000)
@@ -74,7 +74,8 @@ module.exports = class Responder {
 		return contact.split("@")[0]
 	}
 	sendMessageAfterDelay(toContact, message) {
-		const delayS = Math.random()*3 + 1.0
+		const responseTimeRange = processor.metadata.responseTimeSeconds
+		const delayS = (responseTimeRange[1]-responseTimeRange[0]) * Math.random() + responseTimeRange[0]
 		setTimeout(() => this.sendMessage(toContact, message), delayS*1000)
 	}
 	sendMessage( toContact, message) {
