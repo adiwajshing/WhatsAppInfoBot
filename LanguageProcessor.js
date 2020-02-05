@@ -104,7 +104,11 @@ module.exports = class LanguageProcessor {
 			if (command !== null) {
 
 				const indices = this.parameterIndices(question)
-				const regex = new RegExp( "^" + question.replace("{0}", "(the |)(.{2,20})") + "$", "i" )
+				let ques = question
+				for (var i in indices) {
+					ques = ques.replace("{" + i + "}", "(the |)(.{2,20})")
+				}
+				const regex = new RegExp( "^" + ques + "$", "i" )
 
 				this.regexMap[question] = [command, regex, indices]
 			} else {
