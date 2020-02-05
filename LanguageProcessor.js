@@ -156,7 +156,7 @@ module.exports = class LanguageProcessor {
 				
 				for (var i in command) {
 					const a = i
-					promise = promise.then( () => this.formatAnswer(this.data[command[a]], str).then ((ans) => arr.push(ans)) )
+					promise = promise.then( () => this.formatAnswer(this.data[command[a]], [str]).then ((ans) => arr.push(ans)) )
 				}
 
 				return promise.then (() => {
@@ -177,7 +177,7 @@ module.exports = class LanguageProcessor {
 		if (options.length > 1 || answer.includes("function:")) {
 			answer = answer.replace("function:", "")
 			if (this.customProcessor === undefined || this.customProcessor[answer] === undefined) {
-				console.error("function for command '" + cmd + "' not present in custom parser!")
+				console.error("function for command '" + cmd.answer + "' not present in custom parser;!")
 				return Promise.reject("this function is unavailable at this time")
 			}
 			return this.customProcessor[answer](options)
@@ -190,7 +190,7 @@ module.exports = class LanguageProcessor {
 				if (answer.includes("{0}")) {
 					return Promise.reject(
 				 		"Sorry, I can't answer for '" + options + "'\n" + 
-						"However, I can answer for the following options:\n" + Object.keys(cmd.options).join("\n")
+						"However, I can answer for the following options:\n  " + Object.keys(cmd.options).join("\n  ")
 					)
 				} else {
 
