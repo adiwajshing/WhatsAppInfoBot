@@ -74,7 +74,7 @@ module.exports = class Responder {
 		return contact.split("@")[0]
 	}
 	sendMessageAfterDelay(toContact, message) {
-		const responseTimeRange = processor.metadata.responseTimeSeconds
+		const responseTimeRange = this.processor.metadata.responseTimeSeconds
 		const delayS = (responseTimeRange[1]-responseTimeRange[0]) * Math.random() + responseTimeRange[0]
 		setTimeout(() => this.sendMessage(toContact, message), delayS*1000)
 	}
