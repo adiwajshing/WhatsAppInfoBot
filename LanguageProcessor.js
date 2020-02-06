@@ -92,7 +92,7 @@ module.exports = class LanguageProcessor {
 			} else if (char === "{" && regexString.charAt(i+2) === "}") {
 				curIndex += 1
 				const id = regexString.charAt(i+1)
-				indices[id] = curIndex+1 // add 1 as we append a (the |) clause before the parameter
+				indices[id] = curIndex+(Object.keys(indices).length)+1 // add 1 as we append a (the |) clause before the parameter
 			}
 		}
 		let keys = Object.keys(indices)
@@ -182,7 +182,6 @@ module.exports = class LanguageProcessor {
 		let answer = cmd.answer
 
 		if (options.length > 1 || answer === "function") {
-			answer = answer.replace("function:", "")
 			if (this.customProcessor === undefined || this.customProcessor[commandName] === undefined) {
 				console.error("function for command '" + commandName + "' not present in custom parser;!")
 				return Promise.reject("this function is unavailable at this time")
