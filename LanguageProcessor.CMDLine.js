@@ -87,7 +87,11 @@ module.exports = class LanguageProcessorCMDLine {
 				possibleQuestions: [],
 				answer: "",
 				options: {},
-				description: ""
+				meta: {
+					userFacingName: command,
+					description: "",
+					examples: []
+				}
 			}
 			return
 		}
@@ -139,7 +143,7 @@ module.exports = class LanguageProcessorCMDLine {
 
 	setDescription (command, description) {
 		this.ensureCommandExists(command)
-		this.data[command].description = description
+		this.data[command].meta.description = description
 	}
 
 }

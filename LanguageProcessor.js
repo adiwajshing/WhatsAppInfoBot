@@ -50,6 +50,7 @@ module.exports = class LanguageProcessor {
 			this.metadata = {
 				"admins": [],
 				"unknownCommandText": "unknown command {0}",
+				"possibleGreetingPrefix": "(hey|hi|yo)(,|) ",
 				"maxRequestsPerSecond": 0.5,
 				"responseTimeSeconds": [0.5,3]
 			}
@@ -100,15 +101,16 @@ module.exports = class LanguageProcessor {
 		return keys.map(num => indices[num])
 	}
 	editQuestionMap (question, command) {
+
 		if (question.includes("|")) {
 			if (command !== null) {
-
-				const indices = this.parameterIndices(question)
-				let ques = question
+				const formattedQuestion = "^(" + this.metadata.possibleGreetingPrefix + "|)" + question + "$"
+				const indices = this.parameterIndices(formattedQuestion)
+				let ques = formattedQuestion
 				for (var i in indices) {
 					ques = ques.replace("{" + i + "}", "(the |)(.{2,20})")
 				}
-				const regex = new RegExp( "^" + ques + "$", "i" )
+				const regex = new RegExp(ques, "i" )
 
 				this.regexMap[question] = [command, regex, indices]
 			} else {
@@ -160,7 +162,7 @@ module.exports = class LanguageProcessor {
 				
 				for (var i in command) {
 					const a = i
-					promise = promise.then( () => this.formatAnswer(this.data[command[a]], [str]).then ((ans) => arr.push(ans)) )
+					promise = promise.then( () => this.formatAnswer(command[a], [str]).then ((ans) => arr.push(ans)) )
 				}
 
 				return promise.then (() => {
@@ -173,18 +175,19 @@ module.exports = class LanguageProcessor {
 			}
 		}
 	
-		return this.formatAnswer(this.data[command], options)
+		return this.formatAnswer(command, options)
 	}
-	formatAnswer (cmd, options) {
+	formatAnswer (commandName, options) {
+		const cmd = this.data[commandName]
 		let answer = cmd.answer
 
-		if (options.length > 1 || answer.includes("function:")) {
+		if (options.length > 1 || answer === "function") {
 			answer = answer.replace("function:", "")
-			if (this.customProcessor === undefined || this.customProcessor[answer] === undefined) {
-				console.error("function for command '" + cmd.answer + "' not present in custom parser;!")
+			if (this.customProcessor === undefined || this.customProcessor[commandName] === undefined) {
+				console.error("function for command '" + commandName + "' not present in custom parser;!")
 				return Promise.reject("this function is unavailable at this time")
 			}
-			return this.customProcessor[answer](options)
+			return this.customProcessor[commandName](options)
 		} else {
 			const txt = options.length > 0 ? options[0].toLowerCase() : ""
 			const optionValue = cmd.options[txt]
