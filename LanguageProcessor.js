@@ -25,34 +25,38 @@ module.exports = class LanguageProcessor {
 		}
 
 		try {
-			const data = JSON.parse( fs.readFileSync(this.filename) )
-			this.data = data.responses
-			this.metadata = data.metadata
+			this.data = JSON.parse( fs.readFileSync(this.filename) )
 			
 			console.log("read from file " + this.filename)
 
 			if (this.customProcessor) {
 				delete(this.customProcessor)		
 			}
-
-			if (this.metadata.customCommandsFile) {
-				const LanguageProcessorExt = require(this.metadata.customCommandsFile)
+			const customProcessorFile = this.data.metadata.customProcessor
+			if (customProcessorFile && customProcessorFile !== "") {
+				const LanguageProcessorExt = require(customProcessorFile)
 
 				this.customProcessor = new LanguageProcessorExt(this)
 				this.customProcessor.dataFileDidLoad()
-				console.log("loaded custom commands from file: " + this.metadata.customCommandsFile)
+				console.log("loaded custom processor from file: " + customProcessorFile)
 			} else {
 				delete(this.customProcessor)
 			}
 
 		} catch (error) {
-			this.data = { }
-			this.metadata = {
-				"admins": [],
-				"unknownCommandText": "unknown command {0}",
-				"possibleGreetingPrefix": "(hey|hi|yo)(,|) ",
-				"maxRequestsPerSecond": 0.5,
-				"responseTimeSeconds": [0.5,3]
+			this.data = {
+				metadata: {
+					unknownCommandText: "unknown command <input/>",
+					defaultRegexBlank: "(?:the |)(.{1,15})",
+					mapOnlyOptionInput: true,
+					customProcessor: ""
+				},
+				templates: {
+					greeting: "(hi |hello |)(,|) "
+				},
+				responses: {
+
+				}
 			}
 			console.log("error in loading data: " + error)
 		}
@@ -62,98 +66,190 @@ module.exports = class LanguageProcessor {
 	computeQuestionMap () {
 		this.nonSpecificMap = { }
 		this.optionMap = { }
-		this.regexMap = { }
+		this.regexMap = [ ]
 
-		for (var property in this.data) {
-
-			const questions = this.data[property].possibleQuestions
+		for (var property in this.data.responses) {
+			const op = this.data.responses[property]
+			const questions = op.possibleQuestions
 
 			for (var i in questions) {
 				this.editQuestionMap(questions[i], property)
 			}
 
-			const options = this.data[property].options
-			for (var option in options) {
-				let arr = this.optionMap[option] || []
-				arr.push(property)
-				this.optionMap[option] = arr
-			}
-		}
-
-	}
-	parameterIndices (regexString) {
-		let indices = {}
-		let curIndex = -1
-
-		for (let i = 0; i < regexString.length-2;i++) {
-			let char = regexString.charAt(i)
-			if (char === "(") {
-				curIndex += 1
-			} else if (char === "{" && regexString.charAt(i+2) === "}") {
-				curIndex += 1
-				const id = regexString.charAt(i+1)
-				indices[id] = curIndex+(Object.keys(indices).length)+1 // add 1 as we append a (the |) clause before the parameter
-			}
-		}
-		let keys = Object.keys(indices)
-		keys.sort()
-
-		return keys.map(num => indices[num])
-	}
-	editQuestionMap (question, command) {
-
-		if (question.includes("|")) {
-			if (command !== null) {
-				const formattedQuestion = "^(" + this.metadata.possibleGreetingPrefix + "|)" + question + "$"
-				const indices = this.parameterIndices(formattedQuestion)
-				let ques = formattedQuestion
-				for (var i in indices) {
-					ques = ques.replace("{" + i + "}", "(the |)(.{2,20})")
+			let options = Object.keys(op.options)
+			options.forEach (option => {
+				if (op.options[option] && op.options[option].keys) {
+					op.options[option].keys.forEach(option2 => {
+						let arr = this.optionMap[option2] || []
+						arr.push([property, option])
+						this.optionMap[option2] = arr
+					})
 				}
-				const regex = new RegExp(ques, "i" )
 
-				this.regexMap[question] = [command, regex, indices]
+				let arr = this.optionMap[option] || []
+				arr.push([property, option])
+				this.optionMap[option] = arr
+			})
+		}
+
+		this.regexMap.sort((a, b) => {
+			return b.regex.length - a.regex.length
+		})
+	}
+	processQuestion (stringObject) {
+		let tags = []
+
+		let lastTag = ""
+		let currentTag = ""
+		let inTag = false
+
+		let str = stringObject.str
+		var newStr = ""
+
+		for (let i = 0; i < str.length;i++) {
+
+			let char = str.charAt(i)
+
+			if (char === "(" && !inTag && lastTag === "") {
+				newStr += "("
+				if (i+2 < str.length && str[i+1] !== "?" && str[i+1] !== ":") {
+					newStr += "?:"
+				}
+
+			} else if (char === "<") {
+				if (inTag) {
+					throw "'<' char in tag"
+				}
+				inTag = true
+			} else if (char === ">") {
+				if (!inTag) {
+					throw "'>' without tag"
+				}
+
+				inTag = false
+				if (currentTag[currentTag.length-1] === "/") {
+					lastTag = ""
+					tags.push(currentTag.slice(0, -1))
+					currentTag = ""
+
+					newStr += this.data.metadata.defaultRegexBlank
+				} else if (lastTag === "") {
+					lastTag = currentTag
+					tags.push(currentTag)
+					currentTag = ""
+				} else if ("/" + lastTag === currentTag) {
+					lastTag = ""
+					currentTag = ""
+				} else {
+					throw "tag " + lastTag + " did not close"
+				}
+				
+			} else if (inTag) {
+				currentTag += char
 			} else {
-				delete(this.regexMap[question])
+				newStr += char
 			}
+		}
+		stringObject.str = newStr
+
+		if (inTag) {
+			throw "incomplete tag " + currentTag
+		}
+		if (lastTag !== "") {
+			throw "tag " + lastTag + " not closed"
+		}
+
+		return tags
+	}
+	editQuestionMap (questionData, command) {
+
+		let questions
+		if (typeof questionData === "string") {
+			questions = [ questionData ]
 		} else {
-			if (command !== null) {
-				this.nonSpecificMap[question] = command
+			const mainQuestion = questionData.question
+			questions = questionData.templates.map (template => {
+				let ques
+				if (this.data.templates[template]) {
+					ques = this.data.templates[template].replace("<input/>", questionData.question)
+				} else if (template === "") {
+					ques = questionData.question
+				} else {
+					throw "template '" + template + "' not present"
+				}
+
+				return ques
+			})
+		}
+
+		for (var i in questions) {
+			let question = questions[i]
+			if (this.data.templates.greeting) {
+				question = this.data.templates.greeting.replace("<input/>", question)
+			}
+
+			if (question.includes("<")) {
+				if (command !== null) {
+					let obj = {str: question}
+					const tags = this.processQuestion(obj)
+
+					let formattedQuestion = "^" + obj.str + "$"
+					
+					console.log(formattedQuestion)
+					const regex = new RegExp(formattedQuestion, "i")
+
+					this.regexMap.push(
+						{
+							command: command,
+							regex: regex,
+							tags: tags
+						}
+					)
+				} else {
+					//delete(this.regexMap[question])
+				}
 			} else {
-				delete(this.nonSpecificMap[question])
+				if (command !== null) {
+					this.nonSpecificMap[question] = command
+				} else {
+					delete(this.nonSpecificMap[question])
+				}
 			}
 		}
 	}
 
 	getResponse (str) {
-		const arr = [ "?", "!", "." ]
-		if (str.length > 1 && arr.includes(str.charAt(str.length-1))) {
+		if (str.length > 1 && [ "?", "!", "." ].includes(str.charAt(str.length-1))) {
 			str = str.slice(0, -1)
 		}
+
 		const lcaseStr = str.toLowerCase()
-		var command = this.nonSpecificMap[lcaseStr]
-		var options = []
+		let command = this.nonSpecificMap[lcaseStr]
+		let options = {}
 
 		if (command === undefined) {
 			command = this.optionMap[lcaseStr]
 
 			if (command === undefined) {
 
-				for (var ques in this.regexMap) {
-					const info = this.regexMap[ques]
+				for (var i in this.regexMap) {
+					const info = this.regexMap[i]
 
-					const exp = info[1].exec(str)
+					const exp = str.match(info.regex)
 					
 					if (exp !== null) {
-						command = info[0]
-						options = info[2].map(index => exp[ index+1 ])
+						command = info.command
+						const v = exp.slice(1, exp.length)
+						for (var i in v) {
+							options[info.tags[i]] = v[i]
+						}
 						break
 					}
 
 				}
 
 				if (command === undefined) {
-					return Promise.reject( this.metadata.unknownCommandText.replace("{0}", str) )
+					return Promise.reject( this.data.metadata.unknownCommandText.replace("<input/>", str) )
 				}
 
 			} else {
@@ -161,12 +257,14 @@ module.exports = class LanguageProcessor {
 				let promise = Promise.resolve()
 				
 				for (var i in command) {
-					const a = i
-					promise = promise.then( () => this.formatAnswer(command[a], [str]).then ((ans) => arr.push(ans)) )
+					const cmd = command[i]
+					const tag = this.tagsInAnswer(this.data.responses[cmd[0]].answer)[0]
+					options[tag] = str
+					promise = promise.then( () => this.formatAnswer(cmd[0], options).then ((ans) => arr.push(ans)) )
 				}
 
 				return promise.then (() => {
-					if (arr.length == 1) {
+					if (arr.length === 1) {
 						return arr[0]
 					} else {
 						return arr.map((str, index) => ((index+1) + ". " + str) ).join("\n")
@@ -178,54 +276,94 @@ module.exports = class LanguageProcessor {
 		return this.formatAnswer(command, options)
 	}
 	formatAnswer (commandName, options) {
-		const cmd = this.data[commandName]
+		//console.log(commandName + ", " + Object.values(options))
+		
+		const cmd = this.data.responses[commandName]
 		let answer = cmd.answer
 
-		if (options.length > 1 || answer === "function") {
+		if (answer === "function") {
 			if (this.customProcessor === undefined || this.customProcessor[commandName] === undefined) {
 				console.error("function for command '" + commandName + "' not present in custom parser;!")
 				return Promise.reject("this function is unavailable at this time")
 			}
 			return this.customProcessor[commandName](options)
 		} else {
-			const txt = options.length > 0 ? options[0].toLowerCase() : ""
-			const optionValue = cmd.options[txt]
 
-			if (optionValue === undefined || options.length === 0) {
-
-				if (answer.includes("{0}")) {
+			if (options === {}) {
+				if (answer.includes("<")) {
 					return Promise.reject(
-				 		"Sorry, I can't answer for '" + options + "'\n" + 
+				 		"Sorry, I can't answer this question.'\n" + 
 						"However, I can answer for the following options:\n  " + Object.keys(cmd.options).join("\n  ")
 					)
-				} else {
-
 				}
-			} else if (answer.includes("{1}")) {
-				answer = answer.replace("{0}", options[0]).replace("{1}", optionValue)
 			} else {
-				answer = answer.replace("{0}", optionValue)
+				const tag = Object.keys(options)[0]
+				const optionKey = options[tag].toLowerCase()
+
+				const gOption = this.optionMap[optionKey]
+				const gTmp = gOption ? gOption.find(arr => arr[0] === commandName) : undefined
+
+				answer = answer.replace("<" + tag + ":key>", options[tag])
+
+				if (gOption === undefined || gTmp === undefined) {
+					if (answer.includes("<" + tag + ":value>")) {
+						return Promise.reject(
+				 			"Sorry, I can't answer for '" + optionKey + "'\n" + 
+							"However, I can answer for the following options:\n  " + Object.keys(cmd.options).join("\n  ")
+						)
+					} else if (cmd.onUnknownOption) {
+						return this.customProcessor[cmd.onUnknownOption](options)
+					}
+				} else {
+					let optionValue = cmd.options[ gTmp[1] ]
+					if (optionValue.value) {
+						optionValue = optionValue.value
+					}
+					
+					if (optionValue.includes("function:")) {
+						optionValue = optionValue.replace("function:", "")
+
+						if (this.customProcessor === undefined || this.customProcessor[optionValue] === undefined) {
+							console.error("function for option value '" + optionValue + "' not present in custom parser;!")
+							return Promise.reject("this function is unavailable at this time")
+						}
+
+						return this.customProcessor[optionValue]()
+					} else {
+						answer = answer.replace("<" + tag + ":value>", optionValue)
+					}
+				} 
 			}
 			
 		}
 
 		return Promise.resolve(answer)
 	}
+	tagsInAnswer (ans) {
+		let inTag = false
+		var tag = ""
+		for (var i = 0; i < ans.length;i++) {
+			if (ans[i] === "<") {
+				inTag = true
+			} else if (inTag && ans[i] === ":") {
+				inTag = false
+				break
+			} else if (inTag) {
+				tag += ans[i]
+			}
+		}
+		return [tag]
+	}
 
 	save () {
-		const data = {
-			metadata: this.metadata,
-			responses: this.data
-		}
-
-		let str = JSON.stringify(data, null, "\t")
+		let str = JSON.stringify(this.data, null, "\t")
 		this.isSavingFile = true
 		fs.writeFile(this.filename, str, function (err) {
   			if (err) {
   				this.isSavingFile = false
   				throw err
   			}
-  			console.log('saved commands file');
+  			console.log('saved data file');
 		})
 	}
 

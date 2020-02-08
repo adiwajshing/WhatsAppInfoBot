@@ -1,0 +1,79 @@
+{
+	"metadata": {
+		"admins": [],
+		"unknownCommandText": "unknown command <input/>",
+		"maxRequestsPerSecond": 0.5,
+		"responseTimeSeconds": [
+			0.5,
+			3
+		],
+		"defaultRegexBlank": "(?:the |)(.{1,15})",
+		"mapOnlyOptionInput": true
+	},
+	"templates": {
+		"greeting": "(hey(,|) |hi(,|) |yo(,|) |)<input/>",
+		"what": "what((’|'|)s| is| are|) (the |)<input/>",
+		"give": "(please |)(give|provide|share) (the |)<input/>",
+		"when": "(till |)(when|(what |)time) (can i access |can i get |is |are |)(the |)<input/>",
+		"when2": "(when|(till |)what time) does (the |)<input/> <timeop>(open|close|start|end)</timeop>"
+	},
+	"responses": {
+		"timings": {
+			"possibleQuestions": [
+				{
+					"question": "tim(e|ing(s|)) (for |4 |of )<time/>",
+					"templates": [
+						"what",
+						"give",
+						""
+					]
+				},
+				{
+					"question": "<time/> tim(e|ing(s|))",
+					"templates": [
+						"what",
+						"give",
+						""
+					]
+				},
+				{
+					"question": "<time/>",
+					"templates": [
+						"when",
+						"when2"
+					]
+				}
+			],
+			"answer": "*<time:key> timings:*\n <time:value>",
+			"options": {
+				"mail room": {
+					"keys": [
+						"mailroom", "mailzz room"
+					],
+					"value": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
+				},
+				"hot water": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
+			},
+			"meta": {
+				"userFacingName": "timings",
+				"description": "",
+				"examples": []
+			},
+			"onUnknownOption": ""
+		},
+		"greeting": {
+			"possibleQuestions": [
+				"how are you",
+				"(my |)name (is |)<name/>"
+			],
+			"answer": "oh hellu <name:key>",
+			"options": {},
+			"meta": {
+				"userFacingName": "greeting",
+				"description": "",
+				"examples": []
+			},
+			"onUnknownOption": ""
+		}
+	}
+}

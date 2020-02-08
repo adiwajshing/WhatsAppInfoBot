@@ -75,7 +75,7 @@ module.exports = class LanguageProcessorCMDLine {
 
 
 	ensureCommandExists (command) {
-		if (this.data[command] === undefined || this.data[command] === null) {
+		if (this.data.responses[command] === undefined || this.data.responses[command] === null) {
 			throw "command '" + command + "' does not exist"
 		}
 	}
@@ -83,7 +83,7 @@ module.exports = class LanguageProcessorCMDLine {
 		try {
 			this.ensureCommandExists(command)
 		} catch(err) {
-			this.data[command] = {
+			this.data.responses[command] = {
 				possibleQuestions: [],
 				answer: "",
 				options: {},
@@ -91,7 +91,8 @@ module.exports = class LanguageProcessorCMDLine {
 					userFacingName: command,
 					description: "",
 					examples: []
-				}
+				},
+				onUnknownOption: ""
 			}
 			return
 		}
@@ -99,7 +100,7 @@ module.exports = class LanguageProcessorCMDLine {
 	}
 	delete (command) {
 		this.ensureCommandExists(command)
-		for (var i in this.data[command].possibleQuestions) {
+		for (var i in this.data.responses[command].possibleQuestions) {
 			this.editQuestionMap(this.data[command].possibleQuestions[i], null)
 		}
 		this.computeQuestionMap()
@@ -107,10 +108,10 @@ module.exports = class LanguageProcessorCMDLine {
 
 	addQuestion (command, question) {
 		this.ensureCommandExists(command)
-		if (this.command[command].possibleQuestions.findIndex(question) < 0) {
+		if (this.data.responses[command].possibleQuestions.findIndex(q => q === question) >= 0) {
 			throw "question: '" + question + "' already exists in '" + command + "'"
 		} 
-		this.data[command].possibleQuestions.push(question)
+		this.data.responses[command].possibleQuestions.push(question)
 		this.editQuestionMap(question, command)
 	}
 	deleteQuestion(command, question) {
@@ -126,7 +127,7 @@ module.exports = class LanguageProcessorCMDLine {
 	}
 	setAnswer (command, answer) {
 		this.ensureCommandExists(command)
-		this.data[command].answer = answer
+		this.data.responses[command].answer = answer
 	}
 
 	setOption (command, optionKey, optionValue) {
