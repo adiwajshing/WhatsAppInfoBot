@@ -184,18 +184,20 @@ module.exports = class LanguageProcessor {
 
 		for (var i in questions) {
 			let question = questions[i]
-			if (this.data.templates.greeting) {
-				question = this.data.templates.greeting.replace("<input/>", question)
-			}
 
 			if (question.includes("<")) {
+
 				if (command !== null) {
+					if (this.data.templates.greeting) {
+						question = this.data.templates.greeting.replace("<input/>", question)
+					}
+
 					let obj = {str: question}
 					const tags = this.processQuestion(obj)
 
 					let formattedQuestion = "^" + obj.str + "$"
 					
-					console.log(formattedQuestion)
+					//console.log(formattedQuestion)
 					const regex = new RegExp(formattedQuestion, "i")
 
 					this.regexMap.push(
@@ -257,10 +259,15 @@ module.exports = class LanguageProcessor {
 				let promise = Promise.resolve()
 				
 				for (var i in command) {
-					const cmd = command[i]
-					const tag = this.tagsInAnswer(this.data.responses[cmd[0]].answer)[0]
-					options[tag] = str
-					promise = promise.then( () => this.formatAnswer(cmd[0], options).then ((ans) => arr.push(ans)) )
+					const a = i
+					
+					promise = promise.then(() => {
+						const cmd = command[a]
+						const tag = this.tagsInAnswer(this.data.responses[cmd[0]].answer)[0]
+						let ops = {}
+						ops[tag] = cmd[1]
+						return this.formatAnswer(cmd[0], ops)
+					}).then (ans => arr.push(ans))
 				}
 
 				return promise.then (() => {
@@ -328,7 +335,9 @@ module.exports = class LanguageProcessor {
 							return Promise.reject("this function is unavailable at this time")
 						}
 
-						return this.customProcessor[optionValue]()
+						return this.customProcessor[optionValue](options).then (value => {
+							return answer.replace("<" + tag + ":value>", value)
+						})
 					} else {
 						answer = answer.replace("<" + tag + ":value>", optionValue)
 					}

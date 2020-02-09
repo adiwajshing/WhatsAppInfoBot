@@ -13,7 +13,7 @@ function createCommand () {
 if (!processor.data.responses.greeting) {
 	createCommand()
 }
-processor.getResponse("hey, when does the mailroom open").then (str => console.log(str))
+processor.getResponse("hey, give hot water time").then (str => console.log(str))
 
 
 
