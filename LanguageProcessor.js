@@ -175,12 +175,12 @@ module.exports = class LanguageProcessor {
 	editQuestionMap (questionData, command) {
 
 		let question
-		let requiresTemplateToMatch = false
+		let requiresTemplateToMatch = true
 		if (typeof questionData === "string") {
 			question = questionData
 		} else {
 			question = questionData.question
-			requiresTemplateToMatch = true
+
 			questionData.templates.forEach(template => {
 				if (this.templateMap[template]) {
 
@@ -194,7 +194,7 @@ module.exports = class LanguageProcessor {
 			
 		}
 
-		if (question.includes("<")) {
+		if (question.includes("|") || question.includes("<")) {
 
 			if (command !== null) {
 
@@ -230,11 +230,11 @@ module.exports = class LanguageProcessor {
 		}
 
 		const lcaseStr = str.toLowerCase()
-		let command = this.nonSpecificMap[lcaseStr]
+		let command =  this.nonSpecificMap[lcaseStr] 
 		let options = {}
 
 		if (command === undefined) {
-			command = this.optionMap[lcaseStr] 
+			command = this.optionMap[lcaseStr]
 
 			if (command === undefined) {
 
@@ -274,7 +274,7 @@ module.exports = class LanguageProcessor {
 
 					const exp = str.match(info.regex)
 					
-					if (exp !== null) {
+					if (exp) {
 						command = info.command
 						const v = exp.slice(1, exp.length)
 						for (var j in v) {
@@ -284,7 +284,7 @@ module.exports = class LanguageProcessor {
 					}
 				}
 
-				if (command === undefined) {
+				if (!command) {
 					return Promise.reject( this.data.metadata.unknownCommandText.replace("<input/>", str) )
 				}
 
@@ -330,7 +330,7 @@ module.exports = class LanguageProcessor {
 			return this.customProcessor[commandName](options)
 		} else {
 
-			if (options === {}) {
+			if (Object.keys(options).length === 0) {
 				if (answer.includes("<")) {
 					return Promise.reject(
 				 		"Sorry, I can't answer this question.'\n" + 
@@ -338,6 +338,7 @@ module.exports = class LanguageProcessor {
 					)
 				}
 			} else {
+
 				const tag = Object.keys(options)[0]
 				const optionKey = options[tag].toLowerCase()
 
