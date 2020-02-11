@@ -230,11 +230,11 @@ module.exports = class LanguageProcessor {
 		}
 
 		const lcaseStr = str.toLowerCase()
-		let command =  this.optionMap[lcaseStr] 
+		let command = this.nonSpecificMap[lcaseStr]
 		let options = {}
 
 		if (command === undefined) {
-			command = this.nonSpecificMap[lcaseStr]
+			command = this.optionMap[lcaseStr] 
 
 			if (command === undefined) {
 
