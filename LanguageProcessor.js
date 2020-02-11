@@ -32,6 +32,7 @@ module.exports = class LanguageProcessor {
 			if (this.customProcessor) {
 				delete(this.customProcessor)		
 			}
+
 			const customProcessorFile = this.data.metadata.customProcessor
 			if (customProcessorFile && customProcessorFile !== "") {
 				const LanguageProcessorExt = require(customProcessorFile)
@@ -66,7 +67,18 @@ module.exports = class LanguageProcessor {
 	computeQuestionMap () {
 		this.nonSpecificMap = { }
 		this.optionMap = { }
-		this.regexMap = [ ]
+		this.regexMap = { }
+		this.templateMap = { }
+
+		for (var template in this.data.templates) {
+			let obj = {str: this.data.templates[template]}
+			let tags = this.processQuestion(obj, "(.*)")
+
+			this.templateMap[template] = {
+				regex: new RegExp("^"+obj.str+"$", "i"),
+				associatedQuestions: [ ]
+			}
+		}
 
 		for (var property in this.data.responses) {
 			const op = this.data.responses[property]
@@ -91,12 +103,8 @@ module.exports = class LanguageProcessor {
 				this.optionMap[option] = arr
 			})
 		}
-
-		this.regexMap.sort((a, b) => {
-			return b.regex.length - a.regex.length
-		})
 	}
-	processQuestion (stringObject) {
+	processQuestion (stringObject, defaultBlank) {
 		let tags = []
 
 		let lastTag = ""
@@ -105,6 +113,8 @@ module.exports = class LanguageProcessor {
 
 		let str = stringObject.str
 		var newStr = ""
+
+		let totalTags = 0
 
 		for (let i = 0; i < str.length;i++) {
 
@@ -115,7 +125,7 @@ module.exports = class LanguageProcessor {
 				if (i+2 < str.length && str[i+1] !== "?" && str[i+1] !== ":") {
 					newStr += "?:"
 				}
-
+				totalTags += 1
 			} else if (char === "<") {
 				if (inTag) {
 					throw "'<' char in tag"
@@ -132,7 +142,7 @@ module.exports = class LanguageProcessor {
 					tags.push(currentTag.slice(0, -1))
 					currentTag = ""
 
-					newStr += this.data.metadata.defaultRegexBlank
+					newStr += defaultBlank
 				} else if (lastTag === "") {
 					lastTag = currentTag
 					tags.push(currentTag)
@@ -151,6 +161,7 @@ module.exports = class LanguageProcessor {
 			}
 		}
 		stringObject.str = newStr
+		stringObject.totalTags = totalTags
 
 		if (inTag) {
 			throw "incomplete tag " + currentTag
@@ -163,66 +174,86 @@ module.exports = class LanguageProcessor {
 	}
 	editQuestionMap (questionData, command) {
 
-		let questions
+		let question
+		let requiresTemplateToMatch = false
 		if (typeof questionData === "string") {
-			questions = [ questionData ]
+			question = questionData
 		} else {
-			const mainQuestion = questionData.question
-			questions = questionData.templates.map (template => {
-				let ques
-				if (this.data.templates[template]) {
-					ques = this.data.templates[template].replace("<input/>", questionData.question)
+			question = questionData.question
+			requiresTemplateToMatch = true
+			questionData.templates.forEach(template => {
+				if (this.templateMap[template]) {
+
+					this.templateMap[template].associatedQuestions.push(question)
 				} else if (template === "") {
-					ques = questionData.question
+					requiresTemplateToMatch = false
 				} else {
 					throw "template '" + template + "' not present"
 				}
-
-				return ques
 			})
+			
 		}
 
-		for (var i in questions) {
-			let question = questions[i]
+		if (question.includes("<")) {
 
-			if (question.includes("<")) {
+			if (command !== null) {
 
-				if (command !== null) {
-					if (this.data.templates.greeting) {
-						question = this.data.templates.greeting.replace("<input/>", question)
+				let obj = {str: question}
+				const tags = this.processQuestion(obj, this.data.metadata.defaultRegexBlank)
+
+				const regex = new RegExp("^" + obj.str + "$", "i")
+
+				this.regexMap[question] =
+					{
+						command: command,
+						regex: regex,
+						tags: tags,
+						requiresTemplate: requiresTemplateToMatch
 					}
-
-					let obj = {str: question}
-					const tags = this.processQuestion(obj)
-
-					let formattedQuestion = "^" + obj.str + "$"
-					
-					//console.log(formattedQuestion)
-					const regex = new RegExp(formattedQuestion, "i")
-
-					this.regexMap.push(
-						{
-							command: command,
-							regex: regex,
-							tags: tags
-						}
-					)
-				} else {
-					//delete(this.regexMap[question])
-				}
 			} else {
-				if (command !== null) {
-					this.nonSpecificMap[question] = command
-				} else {
-					delete(this.nonSpecificMap[question])
-				}
+				delete(this.regexMap[question])
+			}
+
+		} else {
+			if (command !== null) {
+				this.nonSpecificMap[question] = command
+			} else {
+				delete(this.nonSpecificMap[question])
 			}
 		}
+
 	}
 
 	getResponse (str) {
 		if (str.length > 1 && [ "?", "!", "." ].includes(str.charAt(str.length-1))) {
 			str = str.slice(0, -1)
+		}
+
+		let match
+		let possibleQuestions
+		if (this.templateMap.greeting) {
+			match = str.match(this.templateMap.greeting.regex)
+			if (match) {
+				str = match[1]
+				match = undefined
+			}
+		}
+
+		for (var template in this.templateMap) {
+			if (template === "greeting") {
+				continue
+			}
+
+			match = str.match(this.templateMap[template].regex)
+			if (match) {
+				str = match[1]
+				possibleQuestions = this.templateMap[template].associatedQuestions
+				break
+			}
+
+		}
+		if (!possibleQuestions) {
+			possibleQuestions = Object.keys(this.regexMap)
 		}
 
 		const lcaseStr = str.toLowerCase()
@@ -233,21 +264,23 @@ module.exports = class LanguageProcessor {
 			command = this.optionMap[lcaseStr]
 
 			if (command === undefined) {
+				for (var i in possibleQuestions) {
+					const info = this.regexMap[ possibleQuestions[i] ]
 
-				for (var i in this.regexMap) {
-					const info = this.regexMap[i]
+					if (!match && info.requiresTemplate) {
+						continue
+					}
 
 					const exp = str.match(info.regex)
 					
 					if (exp !== null) {
 						command = info.command
 						const v = exp.slice(1, exp.length)
-						for (var i in v) {
-							options[info.tags[i]] = v[i]
+						for (var j in v) {
+							options[info.tags[j]] = v[j]
 						}
 						break
 					}
-
 				}
 
 				if (command === undefined) {

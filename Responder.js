@@ -4,6 +4,13 @@ module.exports = class Responder {
 
 	constructor(languageProcessor) {
 		this.processor = languageProcessor
+
+		if (!languageProcessor.metadata.admins) {
+			languageProcessor.metadata.admins = []
+			languageProcessor.metadata.maxRequestsPerSecond = 1.0
+			languageProcessor.metadata.responseTimeSeconds = [0.5,3.0]
+		}
+
 		this.admins = {}
 		this.log = { }
 
@@ -37,6 +44,7 @@ module.exports = class Responder {
 		}
 	}
 	onMessageReceived (message) {
+		
 		if (this.log[message.from]) {
 			const diff = new Date().getTime() - this.log[message.from]
 			console.log("diff:" + diff + ", " + (1000/this.processor.metadata.maxRequestsPerSecond) )

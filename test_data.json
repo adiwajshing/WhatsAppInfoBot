@@ -11,11 +11,12 @@
 		"mapOnlyOptionInput": true
 	},
 	"templates": {
-		"greeting": "(hey(,|) |hi(,|) |yo(,|) |)<input/>",
-		"what": "what((’|'|)s| is| are|) (the |)<input/>",
-		"give": "(please |)(give|provide|share) (the |)<input/>",
-		"when": "(till |)(when|(what |)time) (can i access |can i get |is |are |)(the |)<input/>",
-		"when2": "(when|(till |)what time) does (the |)<input/> <timeop>(open|close|start|end)</timeop>"
+		"greeting": "(hey|hi|yo)(,|) <input/>",
+
+		"give": "(please |)(give|provide|share) <input/>",
+		"when2": "(when|(till |)what time) (does|is) <input/> (open|close|start|end)",
+		"when": "(till |)(when|(what |)time) (can i access|can i get|is|are) <input/>",
+		"what": "what((’|'|)s| is| are|) <input/>"
 	},
 	"responses": {
 		"timings": {
