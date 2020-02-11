@@ -361,6 +361,7 @@ module.exports = class LanguageProcessor {
 					if (optionValue.value) {
 						optionValue = optionValue.value
 					}
+					options[tag] = gTmp[1]
 					
 					if (optionValue.includes("function:")) {
 						optionValue = optionValue.replace("function:", "")
