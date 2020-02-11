@@ -229,41 +229,42 @@ module.exports = class LanguageProcessor {
 			str = str.slice(0, -1)
 		}
 
-		let match
-		let possibleQuestions
-		if (this.templateMap.greeting) {
-			match = str.match(this.templateMap.greeting.regex)
-			if (match) {
-				str = match[1]
-				match = undefined
-			}
-		}
-
-		for (var template in this.templateMap) {
-			if (template === "greeting") {
-				continue
-			}
-
-			match = str.match(this.templateMap[template].regex)
-			if (match) {
-				str = match[1]
-				possibleQuestions = this.templateMap[template].associatedQuestions
-				break
-			}
-
-		}
-		if (!possibleQuestions) {
-			possibleQuestions = Object.keys(this.regexMap)
-		}
-
 		const lcaseStr = str.toLowerCase()
-		let command = this.nonSpecificMap[lcaseStr]
+		let command =  this.optionMap[lcaseStr] 
 		let options = {}
 
 		if (command === undefined) {
-			command = this.optionMap[lcaseStr]
+			command = this.nonSpecificMap[lcaseStr]
 
 			if (command === undefined) {
+
+				let match
+				let possibleQuestions
+				if (this.templateMap.greeting) {
+					match = str.match(this.templateMap.greeting.regex)
+					if (match) {
+						str = match[1]
+						match = undefined
+					}
+				}
+
+				for (var template in this.templateMap) {
+					if (template === "greeting") {
+						continue
+					}
+
+					match = str.match(this.templateMap[template].regex)
+					if (match) {
+						str = match[1]
+						possibleQuestions = this.templateMap[template].associatedQuestions
+						break
+					}
+
+				}
+				if (!possibleQuestions) {
+					possibleQuestions = Object.keys(this.regexMap)
+				}
+
 				for (var i in possibleQuestions) {
 					const info = this.regexMap[ possibleQuestions[i] ]
 
