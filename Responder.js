@@ -67,13 +67,13 @@ module.exports = class Responder {
 				response = Promise.resolve(err)
 			}
 		} else {
-			response = this.processor.getResponse(message.body)
+			response = this.processor.getResponse(message.body, message.from)
 		}
 		
-		response.then ((str) => {
+		response.then (str => {
 			console.log(number + " sent message '" + message.body + "', responding with " + str)
 			this.sendMessageAfterDelay(message.from, str.charAt(0).toUpperCase() + str.slice(1))
-		}).catch ((err) => {
+		}).catch (err => {
 			console.log(number + " sent message '" + message.body + "', got error " + err)
 			this.sendMessageAfterDelay(message.from, err)
 		})

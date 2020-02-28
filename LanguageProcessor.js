@@ -224,7 +224,7 @@ module.exports = class LanguageProcessor {
 
 	}
 
-	getResponse (str) {
+	getResponse (str, id) {
 		if (str.length > 1 && [ "?", "!", "." ].includes(str.charAt(str.length-1))) {
 			str = str.slice(0, -1)
 		}
@@ -314,9 +314,9 @@ module.exports = class LanguageProcessor {
 			}
 		}
 	
-		return this.formatAnswer(command, options)
+		return this.formatAnswer(command, options, id)
 	}
-	formatAnswer (commandName, options) {
+	formatAnswer (commandName, options, id) {
 		//console.log(commandName + ", " + Object.values(options))
 		
 		const cmd = this.data.responses[commandName]
@@ -327,7 +327,7 @@ module.exports = class LanguageProcessor {
 				console.error("function for command '" + commandName + "' not present in custom parser;!")
 				return Promise.reject("this function is unavailable at this time")
 			}
-			return this.customProcessor[commandName](options)
+			return this.customProcessor[commandName](options, id)
 		} else {
 
 			if (Object.keys(options).length === 0) {
@@ -354,7 +354,7 @@ module.exports = class LanguageProcessor {
 							"However, I can answer for the following options:\n  " + Object.keys(cmd.options).join("\n  ")
 						)
 					} else if (cmd.onUnknownOption) {
-						return this.customProcessor[cmd.onUnknownOption](options)
+						return this.customProcessor[cmd.onUnknownOption](options, id)
 					}
 				} else {
 					let optionValue = cmd.options[ gTmp[1] ]
@@ -371,7 +371,7 @@ module.exports = class LanguageProcessor {
 							return Promise.reject("this function is unavailable at this time")
 						}
 
-						return this.customProcessor[optionValue](options).then (value => {
+						return this.customProcessor[optionValue](options, id).then (value => {
 							return answer.replace("<" + tag + ":value>", value)
 						})
 					} else {
