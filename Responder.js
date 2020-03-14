@@ -35,7 +35,7 @@ module.exports = class Responder {
 			const file = fs.readFileSync(this.authFile) // load a closed session back if it exists
 			const authInfo = JSON.parse(file)
 			this.client.login( authInfo )
-		} catch {
+		} catch (error) {
 			this.client.connect()
 		}
 	}
