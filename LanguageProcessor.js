@@ -295,6 +295,7 @@ module.exports = class LanguageProcessor {
 				for (var i in command) {
 					const a = i
 					
+					
 					promise = promise.then(() => {
 						const cmd = command[a]
 						const tag = this.tagsInAnswer(this.data.responses[cmd[0]].answer)[0]

@@ -10,6 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "sulla": "^1.1.3"
+    "Baileys": "github:adiwajshing/Baileys"
   }
 }
