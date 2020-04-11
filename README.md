@@ -197,4 +197,5 @@ So, when someone types in "what's the time in Tokyo?":
     13:20 24 April 2020"
 
 **Other stuff:**
-Moreover, a functional command can have more than one command. In the previous example, it could also have a ```<details/>``` tag in addition to the ```<place/>```.
+- Moreover, a functional command can have more than one command. In the previous example, it could also have a ```<details/>``` tag in addition to the ```<place/>```.
+- Also, the "answer" field can point to a function as well.
