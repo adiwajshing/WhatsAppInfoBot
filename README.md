@@ -1,5 +1,16 @@
 # WhatsappInfoBot
- 
+
+## Install: 
+
+1. Point to your project directory in terminal:
+    ```
+    cd path/to/myproject/
+    ```
+2. Add it using npm:
+    ```
+    npm install github:adiwajshing/WhatsappInfoBot
+    ```
+
 ## Usage:
 
 1. Create your data JSON file, programmed responders (more on that later)
