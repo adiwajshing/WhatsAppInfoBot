@@ -6,14 +6,12 @@ module.exports = class LanguageProcessor {
 	constructor(filename) {
 		this.filename = filename
 		this.data = { }
-		this.metadata = { }
 		this.customProcessor = undefined
 		this.isSavingFile = false
 
+		// include all functions from the CMDLine file
 		const functions = Object.getOwnPropertyNames(CMDLine.prototype)
-		for (var i in functions) {
-			LanguageProcessor.prototype[functions[i]] = CMDLine.prototype[functions[i]]
-		}
+		functions.forEach (funcName => LanguageProcessor.prototype[funcName] = CMDLine.prototype[funcName])
 
 		this.loadData()
 		fs.watchFile(filename, (curr, prev) => this.loadData())
@@ -33,18 +31,17 @@ module.exports = class LanguageProcessor {
 				delete(this.customProcessor)		
 			}
 
+			this.computeQuestionMap()
+
 			const customProcessorFile = this.data.metadata.customProcessor
 			if (customProcessorFile && customProcessorFile !== "") {
 				const LanguageProcessorExt = require(customProcessorFile)
-
 				this.customProcessor = new LanguageProcessorExt(this)
-				this.customProcessor.dataFileDidLoad()
 				console.log("loaded custom processor from file: " + customProcessorFile)
-			} else {
-				delete(this.customProcessor)
 			}
 
 		} catch (error) {
+			// create default data
 			this.data = {
 				metadata: {
 					unknownCommandText: "unknown command <input/>",
@@ -61,8 +58,6 @@ module.exports = class LanguageProcessor {
 			}
 			console.log("error in loading data: " + error)
 		}
-
-		this.computeQuestionMap()
 	}
 	computeQuestionMap () {
 		this.nonSpecificMap = { }
@@ -259,12 +254,11 @@ module.exports = class LanguageProcessor {
 						possibleQuestions = this.templateMap[template].associatedQuestions
 						break
 					}
-
 				}
 				if (!possibleQuestions) {
 					possibleQuestions = Object.keys(this.regexMap)
 				}
-
+				
 				for (var i in possibleQuestions) {
 					const info = this.regexMap[ possibleQuestions[i] ]
 

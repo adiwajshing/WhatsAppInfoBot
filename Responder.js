@@ -3,13 +3,20 @@ const fs = require("fs")
 
 module.exports = class Responder {
 
-	constructor(languageProcessor, authFile) {
+	constructor(languageProcessor) {
 		this.processor = languageProcessor
 
 		if (!languageProcessor.metadata.admins) {
 			languageProcessor.metadata.admins = []
+		}
+		if (!languageProcessor.metadata.maxRequestsPerSecond) {
 			languageProcessor.metadata.maxRequestsPerSecond = 1.0
+		}
+		if (!languageProcessor.metadata.responseTimeSeconds) {
 			languageProcessor.metadata.responseTimeSeconds = [0.5,3.0]
+		}
+		if (!languageProcessor.metadata.whatsapp_creds_file) {
+			languageProcessor.metadata.whatsapp_creds_file = "auth_info.json"
 		}
 
 		this.authFile = authFile
@@ -32,7 +39,7 @@ module.exports = class Responder {
 
 	start () {
 		try {
-			const file = fs.readFileSync(this.authFile) // load a closed session back if it exists
+			const file = fs.readFileSync(this.authFile) // load the closed session back if it exists
 			const authInfo = JSON.parse(file)
 			this.client.login( authInfo )
 		} catch (error) {

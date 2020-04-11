@@ -2,23 +2,43 @@
 	"metadata": {
 		"admins": [],
 		"unknownCommandText": "unknown command <input/>",
+		"whatsapp_creds_file": "auth_info.json",
 		"maxRequestsPerSecond": 0.5,
 		"responseTimeSeconds": [
 			0.5,
 			3
 		],
 		"defaultRegexBlank": "(?:the |)(.{1,15})",
-		"mapOnlyOptionInput": true
+		"mapOnlyOptionInput": true,
+		"customProcessor": "./Example/Commands.Help.js"
 	},
 	"templates": {
 		"greeting": "(hey|hi|yo)(,|) <input/>",
-
 		"give": "(please |)(give|provide|share) <input/>",
 		"when2": "(when|(till |)what time) (does|is) <input/> (open|close|start|end)",
 		"when": "(till |)(when|(what |)time) (can i access|can i get|is|are) <input/>",
 		"what": "what((’|'|)s| is| are|) <input/>"
 	},
 	"responses": {
+		"help": {
+			"possibleQuestions": [
+				"help",
+				"help me",
+				{
+					"question": "<cmd/> help",
+					"templates": [""]
+				},
+				{
+					"question": "help (for |me with |)<cmd/>",
+					"templates": [""]
+				},
+				"what (all |)(can |)(you|u) do",
+				"?"
+			],
+			"answer": "function",
+			"options": {},
+			"meta": {}
+		},
 		"timings": {
 			"possibleQuestions": [
 				{
@@ -56,23 +76,25 @@
 				"hot water": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
 			},
 			"meta": {
-				"userFacingName": "timings",
-				"description": "",
-				"examples": []
+				"userFacingName": ["timings", "timing", "time"],
+				"description": "Timings for facilities",
+				"examples": ["mail room timings", "timing 4 mailroom"]
 			},
 			"onUnknownOption": ""
 		},
 		"greeting": {
 			"possibleQuestions": [
-				"how are you",
-				"(my |)name (is |)<name/>"
+				{
+					"question": "my name (is |)<name/>",
+					"templates": ["greeting", ""]
+				}
 			],
 			"answer": "oh hellu <name:key>",
 			"options": {},
 			"meta": {
 				"userFacingName": "greeting",
-				"description": "",
-				"examples": []
+				"description": "say hello with your name",
+				"examples": ["hi, my name is Jeff", "my name Jeff"]
 			},
 			"onUnknownOption": ""
 		}
