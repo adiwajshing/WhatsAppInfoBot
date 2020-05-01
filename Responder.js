@@ -6,20 +6,20 @@ module.exports = class Responder {
 	constructor(languageProcessor) {
 		this.processor = languageProcessor
 
-		if (!languageProcessor.metadata.admins) {
-			languageProcessor.metadata.admins = []
+		if (!languageProcessor.data.metadata.admins) {
+			languageProcessor.data.metadata.admins = []
 		}
-		if (!languageProcessor.metadata.maxRequestsPerSecond) {
-			languageProcessor.metadata.maxRequestsPerSecond = 1.0
+		if (!languageProcessor.data.metadata.maxRequestsPerSecond) {
+			languageProcessor.data.metadata.maxRequestsPerSecond = 1.0
 		}
-		if (!languageProcessor.metadata.responseTimeSeconds) {
-			languageProcessor.metadata.responseTimeSeconds = [0.5,3.0]
+		if (!languageProcessor.data.metadata.responseTimeSeconds) {
+			languageProcessor.data.metadata.responseTimeSeconds = [0.5,3.0]
 		}
-		if (!languageProcessor.metadata.whatsapp_creds_file) {
-			languageProcessor.metadata.whatsapp_creds_file = "auth_info.json"
+		if (!languageProcessor.data.metadata.whatsapp_creds_file) {
+			languageProcessor.data.metadata.whatsapp_creds_file = "auth_info.json"
 		}
 
-		this.authFile = authFile
+		this.authFile = languageProcessor.data.metadata.whatsapp_creds_file
 		this.admins = {}
 		this.log = { }
 		this.client = new WhatsAppWeb()
@@ -30,8 +30,8 @@ module.exports = class Responder {
 		this.client.handlers.onUnreadMessage = (m) => this.onMessage(m)
 		this.client.handlers.onError = (err) => console.log("error: " + err)
 
-		for (var i in languageProcessor.metadata.admins) {
-			this.admins[ languageProcessor.metadata.admins[i] ] = true
+		for (var i in languageProcessor.data.metadata.admins) {
+			this.admins[ languageProcessor.data.metadata.admins[i] ] = true
 		}
 
 		setInterval (() => this.clearLog(), 10*60*1000)
@@ -69,8 +69,8 @@ module.exports = class Responder {
 		
 		if (this.log[sender]) {
 			const diff = new Date().getTime() - this.log[sender]
-			console.log("diff:" + diff + ", " + (1000/this.processor.metadata.maxRequestsPerSecond) )
-			if (diff < (1000/this.processor.metadata.maxRequestsPerSecond) ) {
+			console.log("diff:" + diff + ", " + (1000/this.processor.data.metadata.maxRequestsPerSecond) )
+			if (diff < (1000/this.processor.data.metadata.maxRequestsPerSecond) ) {
 				console.log("too many requests from: " + sender)
 				return
 			}
@@ -105,7 +105,7 @@ module.exports = class Responder {
 		return contact.split("@")[0]
 	}
 	sendMessage(toContact, message, messageID) {
-		let delay = this.processor.metadata.responseTimeSeconds[0]
+		let delay = this.processor.data.metadata.responseTimeSeconds[0]
 		setTimeout(() => this.client.updatePresence(toContact, WhatsAppWeb.Presence.available), delay*1000)
 		delay += 0.5
 		setTimeout(() => this.client.sendReadReceipt(toContact, messageID), delay*1000)
