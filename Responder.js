@@ -29,6 +29,7 @@ module.exports = class Responder {
 		}
 		this.client.handlers.onUnreadMessage = (m) => this.onMessage(m)
 		this.client.handlers.onError = (err) => console.log("error: " + err)
+		this.client.handlers.onMessageStatusChanged = (jid, id, type) => {}
 
 		for (var i in languageProcessor.data.metadata.admins) {
 			this.admins[ languageProcessor.data.metadata.admins[i] ] = true
@@ -55,7 +56,6 @@ module.exports = class Responder {
 		}
 	}
 	onMessage (message) {
-
 		const sender = message.key.remoteJid
 		let messageText
 		if (message.message.conversation) {
@@ -63,7 +63,7 @@ module.exports = class Responder {
 		} else if (message.message.text) {
 			messageText = message.message.text
 		} else {
-			console.log("recieved message from " + sender + "; cannot be responded to: " + JSON.stringify(message.message))
+			console.log("recieved message from " + sender + "; cannot be responded to: " + this.client.getMessageType (message.message))
 			return
 		}
 		
