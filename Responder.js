@@ -42,13 +42,13 @@ module.exports = class Responder {
 		} catch { }
 		
 		this.client.connect (authInfo, 20*1000)
-		.then (([user, _, _, unread]) => {
+		.then (([user, _, __, unread]) => {
+			const authInfo = this.client.base64EncodedAuthInfo()
+			fs.writeFileSync(this.authFile, JSON.stringify(authInfo, null, "\t"))
+			
 			console.log ("Using account of: " + user.name)
 			console.log ("Have " + unread.length + " pending messages")
 			unread.forEach (m => this.onMessage(m))
-
-			const authInfo = this.client.base64EncodedAuthInfo()
-    		fs.writeFileSync(this.authFile, JSON.stringify(authInfo, null, "\t"))
 		})
 		.catch (err => console.log("got error: " + err) )
 	}
@@ -75,7 +75,6 @@ module.exports = class Responder {
 		
 		if (this.log[senderID]) {
 			const diff = new Date().getTime() - this.log[senderID]
-			console.log("diff:" + diff + ", " + (1000/this.processor.data.metadata.maxRequestsPerSecond) )
 			if (diff < (1000/this.processor.data.metadata.maxRequestsPerSecond) ) {
 				console.log("too many requests from: " + senderID)
 				return
@@ -84,7 +83,7 @@ module.exports = class Responder {
 		this.log[senderID] = new Date().getTime()
 
 		var response
-		if (this.admins[number] === true && messageText.includes(";")) {
+		if (this.admins[senderID] === true && messageText.includes(";")) {
 			try {
 				this.processor.executeFromString(messageText)
 				response = Promise.resolve("ok")
@@ -96,12 +95,12 @@ module.exports = class Responder {
 		}
 		
 		response.then (str => {
-			console.log(number + " sent message '" + messageText + "', responding with " + str)
+			console.log(senderID + " sent message '" + messageText + "', responding with " + str)
 			str = str.charAt(0).toUpperCase() + str.slice(1)
 			this.sendMessage(senderID, str, message.key.id)
 		}).catch (err => {
-			console.log(number + " sent message '" + messageText + "', got error " + err)
-			if (senderID.contains("@g.us")) {
+			console.log(senderID + " sent message '" + messageText + "', got error " + err)
+			if (senderID.includes("@g.us")) {
 
 			} else {
 				this.sendMessage(senderID, err, message.key.id)

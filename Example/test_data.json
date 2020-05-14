@@ -2,7 +2,7 @@
 	"metadata": {
 		"admins": [],
 		"unknownCommandText": "unknown command <input/>",
-		"whatsapp_creds_file": "auth_info.json",
+		"whatsapp_creds_file": "./auth_info.json",
 		"maxRequestsPerSecond": 0.5,
 		"responseTimeSeconds": [
 			0.5,
@@ -10,7 +10,7 @@
 		],
 		"defaultRegexBlank": "(?:the |)(.{1,15})",
 		"mapOnlyOptionInput": true,
-		"customProcessor": "./Example/Commands.Help.js"
+		"customProcessor": "./Example/Commands.Help"
 	},
 	"templates": {
 		"greeting": "(hey|hi|yo)(,|) <input/>",
