@@ -1,4 +1,4 @@
-const WhatsAppWeb = require("Baileys")
+const WhatsAppWeb = require("baileys")
 const fs = require("fs")
 
 module.exports = class Responder {
@@ -23,13 +23,10 @@ module.exports = class Responder {
 		this.admins = {}
 		this.log = { }
 		this.client = new WhatsAppWeb()
-		this.client.handlers.onConnected = () => {
-			const authInfo = this.client.base64EncodedAuthInfo()
-    		fs.writeFileSync(this.authFile, JSON.stringify(authInfo, null, "\t"))
-		}
-		this.client.handlers.onUnreadMessage = (m) => this.onMessage(m)
-		this.client.handlers.onError = (err) => console.log("error: " + err)
-		this.client.handlers.onMessageStatusChanged = (jid, id, type) => {}
+		this.client.autoReconnect = true
+
+		this.client.setOnUnreadMessage (m => this.onMessage(m))
+		this.client.setOnUnexpectedDisconnect (err => console.log("disconnected unexpectedly: " + err))
 
 		for (var i in languageProcessor.data.metadata.admins) {
 			this.admins[ languageProcessor.data.metadata.admins[i] ] = true
@@ -37,15 +34,23 @@ module.exports = class Responder {
 
 		setInterval (() => this.clearLog(), 10*60*1000)
 	}
-
 	start () {
+		var authInfo = null
 		try {
 			const file = fs.readFileSync(this.authFile) // load the closed session back if it exists
-			const authInfo = JSON.parse(file)
-			this.client.login( authInfo )
-		} catch (error) {
-			this.client.connect()
-		}
+			authInfo = JSON.parse(file)
+		} catch { }
+		
+		this.client.connect (authInfo, 20*1000)
+		.then (([user, _, _, unread]) => {
+			console.log ("Using account of: " + user.name)
+			console.log ("Have " + unread.length + " pending messages")
+			unread.forEach (m => this.onMessage(m))
+
+			const authInfo = this.client.base64EncodedAuthInfo()
+    		fs.writeFileSync(this.authFile, JSON.stringify(authInfo, null, "\t"))
+		})
+		.catch (err => console.log("got error: " + err) )
 	}
 	clearLog () {
 		const time = new Date().getTime()
@@ -56,31 +61,29 @@ module.exports = class Responder {
 		}
 	}
 	onMessage (message) {
-		const sender = message.key.remoteJid
-		let messageText
-		if (message.message.conversation) {
-			messageText = message.message.conversation
-		} else if (message.message.text) {
-			messageText = message.message.text
-		} else {
-			console.log("recieved message from " + sender + "; cannot be responded to: " + this.client.getMessageType (message.message))
+		const senderID = message.key.remoteJid
+		const [notificationType, messageType] = this.client.getNotificationType (message)
+		if (notificationType !== "message") {
+			console.log("recieved notification from " + senderID + " of type " + notificationType + "; cannot be responded to")
 			return
 		}
+		if (messageType !== WhatsAppWeb.MessageType.text && messageType !== WhatsAppWeb.MessageType.extendedText) {
+			console.log("recieved message from " + senderID + " of type " + messageType + "; cannot be responded to")
+			return
+		}
+		const messageText = message.message.conversation ?? message.message.text
 		
-		if (this.log[sender]) {
-			const diff = new Date().getTime() - this.log[sender]
+		if (this.log[senderID]) {
+			const diff = new Date().getTime() - this.log[senderID]
 			console.log("diff:" + diff + ", " + (1000/this.processor.data.metadata.maxRequestsPerSecond) )
 			if (diff < (1000/this.processor.data.metadata.maxRequestsPerSecond) ) {
-				console.log("too many requests from: " + sender)
+				console.log("too many requests from: " + senderID)
 				return
 			}
 		}
+		this.log[senderID] = new Date().getTime()
 
-		this.log[sender] = new Date().getTime()
-
-		const number = this.parseNumber(sender)
-		var response = Promise.resolve()
-
+		var response
 		if (this.admins[number] === true && messageText.includes(";")) {
 			try {
 				this.processor.executeFromString(messageText)
@@ -89,29 +92,30 @@ module.exports = class Responder {
 				response = Promise.resolve(err)
 			}
 		} else {
-			response = this.processor.getResponse(messageText, sender)
+			response = this.processor.getResponse(messageText, senderID)
 		}
 		
 		response.then (str => {
 			console.log(number + " sent message '" + messageText + "', responding with " + str)
 			str = str.charAt(0).toUpperCase() + str.slice(1)
-			this.sendMessage(sender, str, message.key.id)
+			this.sendMessage(senderID, str, message.key.id)
 		}).catch (err => {
 			console.log(number + " sent message '" + messageText + "', got error " + err)
-			this.sendMessage(sender, err, message.key.id)
+			if (senderID.contains("@g.us")) {
+
+			} else {
+				this.sendMessage(senderID, err, message.key.id)
+			}
 		})
-	}
-	parseNumber (contact) {
-		return contact.split("@")[0]
 	}
 	sendMessage(toContact, message, messageID) {
 		let delay = this.processor.data.metadata.responseTimeSeconds[0]
 		setTimeout(() => this.client.updatePresence(toContact, WhatsAppWeb.Presence.available), delay*1000)
-		delay += 0.5
+		delay += 0.25
 		setTimeout(() => this.client.sendReadReceipt(toContact, messageID), delay*1000)
 		delay += 0.5
 		setTimeout(() => this.client.updatePresence(toContact, WhatsAppWeb.Presence.composing), delay*1000)
-		delay += 2.0
+		delay += 1.75
 		setTimeout(() => this.client.sendTextMessage(toContact, message), delay*1000)
 	}
 }
