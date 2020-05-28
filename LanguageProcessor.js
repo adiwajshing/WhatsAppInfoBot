@@ -127,7 +127,7 @@ class LanguageProcessor {
             })
 
         // remove all punctuations and unnecessary items
-        input = input.replace(/!|'|\?|\./g,"") 
+        input = input.toLowerCase().replace(/!|'|\?|\./g,"") 
 
         var intents = simpleExtract (input) // first, do a simple extract
         if (Object.keys(intents).length == 0) { // if nothing was picked up

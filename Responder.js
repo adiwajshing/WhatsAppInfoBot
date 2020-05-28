@@ -6,19 +6,17 @@ module.exports = class Responder {
 	constructor(languageProcessor) {
 		this.processor = languageProcessor
 		
-		const meta = languageProcessor.data.meta
-		languageProcessor.data.meta = {
-			admins: meta.admins || [],
-			maxRequestsPerSecond: meta.maxRequestsPerSecond || 1.0,
-			whatsAppCredsFile: meta.whatsAppCredsFile || "auth_info.json"
-		}
-		this.authFile = languageProcessor.data.meta.whatsAppCredsFile
+		let data = languageProcessor.data
+		data.meta.whatsAppCredsFile = data.meta.whatsAppCredsFile || "auth_info.json"
+		data.meta.maxRequestsPerSecond = data.meta.maxRequestsPerSecond || 1.0,
+
+		this.authFile = data.meta.whatsAppCredsFile
 		this.log = { }
 		this.client = new WhatsAppWeb()
 		this.client.autoReconnect = true
 
 		this.client.setOnUnreadMessage (m => this.onMessage(m))
-		this.client.setOnUnexpectedDisconnect (err => console.log("disconnected unexpectedly: " + err))
+		this.client.setOnUnexpectedDisconnect (err => console.error("disconnected unexpectedly: " + err))
 
 		setInterval (() => this.clearLog(), 10*60*1000)
 	}
@@ -28,7 +26,6 @@ module.exports = class Responder {
 			const file = fs.readFileSync(this.authFile) // load the closed session back if it exists
 			authInfo = JSON.parse(file)
 		} catch { }
-		
 		this.client.connect (authInfo, 20*1000)
 		.then (([user, _, __, unread]) => {
 			const authInfo = this.client.base64EncodedAuthInfo()
@@ -38,7 +35,7 @@ module.exports = class Responder {
 			console.log ("Have " + unread.length + " pending messages")
 			unread.forEach (m => this.onMessage(m))
 		})
-		.catch (err => console.log("got error: " + err) )
+		.catch (err => console.error("got error: " + err) )
 	}
 	clearLog () {
 		const time = new Date().getTime()
@@ -63,7 +60,7 @@ module.exports = class Responder {
 		
 		if (this.log[senderID]) {
 			const diff = new Date().getTime() - this.log[senderID]
-			if (diff < (1000/this.processor.data.metadata.maxRequestsPerSecond) ) {
+			if (diff < (1000/this.processor.data.meta.maxRequestsPerSecond) ) {
 				console.log("too many requests from: " + senderID)
 				return
 			}
@@ -74,7 +71,7 @@ module.exports = class Responder {
 			const response = await this.processor.output(messageText, senderID)
 			console.log(senderID + " sent message '" + messageText + "', responding with " + response)
 			this.sendMessage(senderID, response, message.key.id)
-		} catch (error) {
+		} catch (err) {
 			console.log(senderID + " sent message '" + messageText + "', got error " + err)
 			if (senderID.includes("@g.us")) {
 				// do not respond if its a group
@@ -92,6 +89,6 @@ module.exports = class Responder {
 		delay += 0.5
 		setTimeout(() => this.client.updatePresence(toContact, WhatsAppWeb.Presence.composing), delay*1000)
 		delay += 1.75
-		setTimeout(() => this.client.sendTextMessage(toContact, message), delay*1000)
+		setTimeout(() => this.client.sendTextMessage(toContact, message, {}), delay*1000)
 	}
 }
