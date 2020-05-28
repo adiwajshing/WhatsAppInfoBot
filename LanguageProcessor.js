@@ -1,408 +1,220 @@
-var fs = require('fs')
-const CMDLine = require('./LanguageProcessor.CMDLine.js')
-
-module.exports = class LanguageProcessor {
-	
-	constructor(filename) {
-		this.filename = filename
+const fs = require('fs')
+const natural = require('natural')
+/**
+ * @typedef {Object} IntentData
+ * @property {string[]} keywords - The keywords required to recognize an intent
+ * @property {Object.<string, object>} entities - The entities in this intent
+ * @property {string} answer - What to respond with when a user fires this intent (include <entity:key> & <entity:value> for entities)
+ * @property {Object.<string, string>} meta - Dictionary to store some metadata
+ */
+/**
+ * @typedef {Object} Data
+ * @property {object} meta - some metadata for this file
+ * @property {string} meta.parsingFailedText - text to respond with, when intents could not be recognized
+ * @property {number} [meta.maxRequestsPerSecond] - max WhatsApp requests a user can make in a second
+ * @property {string} [meta.whatsAppCredsFile] - file to store authentication credentials of WhatsApp Web
+ * @property {string} [meta.customProcessor] - file path to class for custom responding to intents
+ * @property {Object.<string, IntentData>} intents - actual intents in the data
+ */
+class LanguageProcessor {
+    /**
+     * Construct a new instance of a LanguageProcessor
+     * @param {string} filename - filename of the data file
+     */
+    constructor(filename) {
+        this.filename = filename
+        /** @type {Data} */
 		this.data = { }
-		this.customProcessor = undefined
-		this.isSavingFile = false
-
-		// include all functions from the CMDLine file
-		const functions = Object.getOwnPropertyNames(CMDLine.prototype)
-		functions.forEach (funcName => LanguageProcessor.prototype[funcName] = CMDLine.prototype[funcName])
+		this.customProcessor = null
+        this.tokenizer = new natural.RegexpTokenizer ({pattern: /\ /})
+        this.chat = require ("./LanguageProcessor.CMDLine").chat
 
 		this.loadData()
-		fs.watchFile(filename, (curr, prev) => this.loadData())
-	}
-	loadData () {
-		if (this.isSavingFile) {
-			this.isSavingFile = false
-			return
+    }
+    /** Load data from the file */
+    loadData () {
+        this.data = JSON.parse( fs.readFileSync(this.filename) )
+        console.log("read from file " + this.filename)
+        
+        this.parseIntents(this.data.intents)
+
+        if (this.customProcessor) {
+            delete this.customProcessor	
+        }
+        const customProcessorFile = this.data.meta.customProcessor
+        if (customProcessorFile && customProcessorFile !== "") {
+            const LanguageProcessorExt = require(customProcessorFile)
+            this.customProcessor = new LanguageProcessorExt(this)
+            console.log("loaded custom processor from file: " + customProcessorFile)
+        }
+    }
+    /**
+     * 
+     * @param {IntentData[]} intents 
+     */
+    parseIntents (intents) {
+        this.trie = new natural.Trie(false)
+        this.entityMap = {}
+
+        for (var intent in intents) {
+            const data = intents[intent]
+            
+            this.trie.addStrings (data.keywords)
+            this.updateEntities (intent, data.entities)
+        }
+    }
+    /**
+     * Update the entities for a given intent
+     * @param {string} intent 
+     * @param {string[]} entities 
+     */
+    updateEntities (intent, entities) {
+        this.entityMap [intent] = {}
+        for (var entity in entities) {
+            const allEntities = [entity].concat( entities[entity].alternates || [] )
+            allEntities.forEach(alt => this.entityMap[intent][alt] = entity)
+        }
+    }
+    /**
+     * Extract all intents & corresponding entities from a given input text
+     * @param {string} input - the input text
+     * @returns {Object.<string, string[]>} object mapping intent to array of recognized entities for given intent eg. {timings: ["lunch", "dinner"], greeting: []}
+     */
+    extractIntentsAndOptions (input) {
+        /**
+         * Check if the input maps on exactly to some entity
+         * For eg. given intents "timings" & "meals" with entities "lunch" and input as "lunch", the function will return {timings: ["lunch"], meals: ["lunch"]} 
+         * @param {string} input 
+         * @return {{string:string[]}} object mapping intent to recognized entities for given intent
+         */
+        const simpleExtract = input => {
+            let recognizedIntents = {}
+            for (var intent in this.entityMap) { // loop over all intents
+                const thisEntities = this.entityMap[intent] // all entities present in this intent 
+                const entities = Object.keys(thisEntities).filter (opt => input === opt).map (opt => thisEntities[opt]) // add if input matches the entity
+                entities.length > 0 && (recognizedIntents [intent] = entities) // add to recognized intents if some entity was picked up
+            }
+            return recognizedIntents
+        }
+        /**
+         * Tokenize the given input string & stem the words
+         * @param {string} input 
+         * @returns {string[]} array of tokenized & stemmed words
+         */
+        const stemInput = input => {
+            const words = this.tokenizer.tokenize(input)
+            return Object.keys(words).map (word => natural.PorterStemmer.stem(words[word]))
+        }
+        /**
+         * Extract the possible intents from the stemmed words
+         * @param {string[]} stemmed_words - the stemmed word array
+         * @returns {string[]} array of intents recognized
+         */
+        const getIntents = stemmed_words => {
+            const intent_wordcloud = stemmed_words.filter (word => this.trie.contains(word))
+            const intents = this.data.intents
+            return intent_wordcloud.flatMap (word => Object.keys(intents).filter (intent => intents[intent].keywords.includes (word)))
+        }
+        /**
+         * Extract the entities for each corresponding intent
+         * @param {string} input 
+         * @returns {string[]} array of intents recognized
+         */
+        const extractEntities = (input, intents) => 
+            Object.keys(intents).map (intent => {
+                const entities = this.entityMap[intent] // all entities in the intent
+                intents[intent] = Object.keys (entities).filter (opt => input.includes (opt)).map (opt => entities[opt])
+            })
+
+        // remove all punctuations and unnecessary items
+        input = input.replace(/!|'|\?|\./g,"") 
+
+        var intents = simpleExtract (input) // first, do a simple extract
+        if (Object.keys(intents).length == 0) { // if nothing was picked up
+            const stemmed_words = stemInput(input)
+            getIntents (stemmed_words).forEach (intent => intents[intent] = {})
+            extractEntities (input, intents)
+        }
+        return intents
+    }
+    /**
+     * Get the response for a given input string
+     * @param {string} input
+     * @param {string} user - the user who is requesting the output
+     * @returns {string} - the response
+     */
+    async output (input, user) {
+        const compileAnswer = strings => strings.length===1 ? strings[0] : strings.map ((str, i) => "*"+(i+1)+".* " + str).join ("\n")
+
+        var intents = this.extractIntentsAndOptions (input)
+        const intentCount = Object.keys(intents).length
+        if (intentCount > 1 && intents.greeting) { // if more than one intent was recognized & a greeting was detected too
+            delete intents.greeting // remove the greeting intent
+        } if (intentCount == 0) {
+            throw this.data.meta.parsingFailedText.replace ("<input>", input)
+        }
+        console.log ("intents: " + JSON.stringify(intents))
+        // compute the output for each intent & map the errors as text
+        const tasks = Object.keys(intents).map (intent => this.computeOutput (intent, intents[intent], user))
+        
+        const outputs = await Promise.allSettled (tasks)
+        const correctOutputs = outputs.filter (output => output.status==="fulfilled")
+
+        if (correctOutputs.length > 0) {
+            const strings = correctOutputs.map (output => output.value).flat ()
+            return compileAnswer (strings)
+        } else {
+            const strings = outputs.map (output => output.value || output.reason).flat ()
+            throw compileAnswer (strings)
+        }
+    }
+    /**
+     * 
+     * @param {string} intent 
+     * @param {string[]} entities 
+     * @returns {string[]} - array of answers
+     */
+    async computeOutput (intent, entities, user) {
+        const data = this.data.intents[intent] // data for the intent
+        
+		if (data.answer === "function") { // if the intent requires a function to answer
+			return this.forwardOutput (intent, entities, user)
+		} else if (Object.keys(entities).length === 0) {
+            if (data.answer.includes("<")) { // if the answer requires an entity to answer but no entities were parsed
+                throw "Sorry, I can't answer this specific query.'\n" + 
+                      "However, I can answer for the following options:\n  " + Object.keys(data.entities).join("\n  ")
+            } else {
+                return data.answer
+            }
+        } else {
+            const answers = entities.map (entity => {
+                var answer = data.answer
+                answer = answer.replace("<entity:key>", entity)
+                // account for the fact that the value may be a property
+                const value = data.entities [entity].value || data.entities [entity]
+
+                if (value.includes("function:")) {
+                    value = value.replace("function:", "")
+                    return this.forwardOutput (value, entities, user)
+                } else {
+                    answer = Promise.resolve( answer.replace("<entity:value>", value) )
+                }
+                return answer
+            })
+            return Promise.all (answers)
 		}
-
-		try {
-			this.data = JSON.parse( fs.readFileSync(this.filename) )
-			
-			console.log("read from file " + this.filename)
-
-			if (this.customProcessor) {
-				delete(this.customProcessor)		
-			}
-
-			this.computeQuestionMap()
-
-			const customProcessorFile = this.data.metadata.customProcessor
-			if (customProcessorFile && customProcessorFile !== "") {
-				const LanguageProcessorExt = require(customProcessorFile)
-				this.customProcessor = new LanguageProcessorExt(this)
-				console.log("loaded custom processor from file: " + customProcessorFile)
-			}
-
-		} catch (error) {
-			// create default data
-			this.data = {
-				metadata: {
-					unknownCommandText: "unknown command <input/>",
-					defaultRegexBlank: "(?:the |)(.{1,15})",
-					mapOnlyOptionInput: true,
-					customProcessor: ""
-				},
-				templates: {
-					greeting: "(hi |hello |)(,|) "
-				},
-				responses: {
-
-				}
-			}
-			console.log("error in loading data: " + error)
-		}
-	}
-	computeQuestionMap () {
-		this.nonSpecificMap = { }
-		this.optionMap = { }
-		this.regexMap = { }
-		this.templateMap = { }
-
-		for (var template in this.data.templates) {
-			let obj = {str: this.data.templates[template]}
-			let tags = this.processQuestion(obj, "(.*)")
-
-			this.templateMap[template] = {
-				regex: new RegExp("^"+obj.str+"$", "i"),
-				associatedQuestions: [ ]
-			}
-		}
-
-		for (var property in this.data.responses) {
-			const op = this.data.responses[property]
-			const questions = op.possibleQuestions
-
-			for (var i in questions) {
-				this.editQuestionMap(questions[i], property)
-			}
-
-			let options = Object.keys(op.options)
-			options.forEach (option => {
-				if (op.options[option] && op.options[option].keys) {
-					op.options[option].keys.forEach(option2 => {
-						let arr = this.optionMap[option2] || []
-						arr.push([property, option])
-						this.optionMap[option2] = arr
-					})
-				}
-
-				let arr = this.optionMap[option] || []
-				arr.push([property, option])
-				this.optionMap[option] = arr
-			})
-		}
-	}
-	processQuestion (stringObject, defaultBlank) {
-		let tags = []
-
-		let lastTag = ""
-		let currentTag = ""
-		let inTag = false
-
-		let str = stringObject.str
-		var newStr = ""
-
-		let totalTags = 0
-
-		for (let i = 0; i < str.length;i++) {
-
-			let char = str.charAt(i)
-
-			if (char === "(" && !inTag && lastTag === "") {
-				newStr += "("
-				if (i+2 < str.length && str[i+1] !== "?" && str[i+1] !== ":") {
-					newStr += "?:"
-				}
-				totalTags += 1
-			} else if (char === "<") {
-				if (inTag) {
-					throw "'<' char in tag"
-				}
-				inTag = true
-			} else if (char === ">") {
-				if (!inTag) {
-					throw "'>' without tag"
-				}
-
-				inTag = false
-				if (currentTag[currentTag.length-1] === "/") {
-					lastTag = ""
-					tags.push(currentTag.slice(0, -1))
-					currentTag = ""
-
-					newStr += defaultBlank
-				} else if (lastTag === "") {
-					lastTag = currentTag
-					tags.push(currentTag)
-					currentTag = ""
-				} else if ("/" + lastTag === currentTag) {
-					lastTag = ""
-					currentTag = ""
-				} else {
-					throw "tag " + lastTag + " did not close"
-				}
-				
-			} else if (inTag) {
-				currentTag += char
-			} else {
-				newStr += char
-			}
-		}
-		stringObject.str = newStr
-		stringObject.totalTags = totalTags
-
-		if (inTag) {
-			throw "incomplete tag " + currentTag
-		}
-		if (lastTag !== "") {
-			throw "tag " + lastTag + " not closed"
-		}
-
-		return tags
-	}
-	editQuestionMap (questionData, command) {
-
-		let question
-		let requiresTemplateToMatch = true
-		if (typeof questionData === "string") {
-			question = questionData
-		} else {
-			question = questionData.question
-
-			questionData.templates.forEach(template => {
-				if (this.templateMap[template]) {
-
-					this.templateMap[template].associatedQuestions.push(question)
-				} else if (template === "") {
-					requiresTemplateToMatch = false
-				} else {
-					throw "template '" + template + "' not present"
-				}
-			})
-			
-		}
-
-		if (question.includes("|") || question.includes("<")) {
-
-			if (command !== null) {
-
-				let obj = {str: question}
-				const tags = this.processQuestion(obj, this.data.metadata.defaultRegexBlank)
-
-				const regex = new RegExp("^" + obj.str + "$", "i")
-
-				this.regexMap[question] =
-					{
-						command: command,
-						regex: regex,
-						tags: tags,
-						requiresTemplate: requiresTemplateToMatch
-					}
-			} else {
-				delete(this.regexMap[question])
-			}
-
-		} else {
-			if (command !== null) {
-				this.nonSpecificMap[question] = command
-			} else {
-				delete(this.nonSpecificMap[question])
-			}
-		}
-
-	}
-
-	getResponse (str, id) {
-		if (str.length > 1 && [ "?", "!", "." ].includes(str.charAt(str.length-1))) {
-			str = str.slice(0, -1)
-		}
-
-		const lcaseStr = str.toLowerCase()
-		let command =  this.nonSpecificMap[lcaseStr] 
-		let options = {}
-
-		if (command === undefined) {
-			command = this.optionMap[lcaseStr]
-
-			if (command === undefined) {
-
-				let match
-				let possibleQuestions
-				if (this.templateMap.greeting) {
-					match = str.match(this.templateMap.greeting.regex)
-					if (match) {
-						str = match[1]
-						match = undefined
-					}
-				}
-
-				for (var template in this.templateMap) {
-					if (template === "greeting") {
-						continue
-					}
-
-					match = str.match(this.templateMap[template].regex)
-					if (match) {
-						str = match[1]
-						possibleQuestions = this.templateMap[template].associatedQuestions
-						break
-					}
-				}
-				if (!possibleQuestions) {
-					possibleQuestions = Object.keys(this.regexMap)
-				}
-				
-				for (var i in possibleQuestions) {
-					const info = this.regexMap[ possibleQuestions[i] ]
-
-					if (!match && info.requiresTemplate) {
-						continue
-					}
-
-					const exp = str.match(info.regex)
-					
-					if (exp) {
-						command = info.command
-						const v = exp.slice(1, exp.length)
-						for (var j in v) {
-							options[info.tags[j]] = v[j]
-						}
-						break
-					}
-				}
-
-				if (!command) {
-					return Promise.reject( this.data.metadata.unknownCommandText.replace("<input/>", str) )
-				}
-
-			} else {
-				let arr = []
-				let promise = Promise.resolve()
-				
-				for (var i in command) {
-					const a = i
-					
-					promise = promise.then(() => {
-						const cmd = command[a]
-						const tag = this.tagsInAnswer(this.data.responses[cmd[0]].answer)[0]
-						let ops = {}
-						ops[tag] = cmd[1]
-						return this.formatAnswer(cmd[0], ops)
-					}).then (ans => arr.push(ans))
-				}
-
-				return promise.then (() => {
-					if (arr.length === 1) {
-						return arr[0]
-					} else {
-						return arr.map((str, index) => ((index+1) + ". " + str) ).join("\n")
-					}
-				})
-			}
-		}
-	
-		return this.formatAnswer(command, options, id)
-	}
-	formatAnswer (commandName, options, id) {
-		//console.log(commandName + ", " + Object.values(options))
-		const cmd = this.data.responses[commandName]
-		let answer = cmd.answer
-
-		if (answer === "function") {
-			if (this.customProcessor === undefined || this.customProcessor[commandName] === undefined) {
-				console.error("function for command '" + commandName + "' not present in custom parser;!")
-				return Promise.reject("this function is unavailable at this time")
-			}
-			return this.customProcessor[commandName](options, id)
-		} else {
-
-			if (Object.keys(options).length === 0) {
-				if (answer.includes("<")) {
-					return Promise.reject(
-				 		"Sorry, I can't answer this question.'\n" + 
-						"However, I can answer for the following options:\n  " + Object.keys(cmd.options).join("\n  ")
-					)
-				}
-			} else {
-
-				const tag = Object.keys(options)[0]
-				const optionKey = options[tag].toLowerCase()
-
-				const gOption = this.optionMap[optionKey]
-				const gTmp = gOption ? gOption.find(arr => arr[0] === commandName) : undefined
-
-				answer = answer.replace("<" + tag + ":key>", options[tag])
-
-				if (gOption === undefined || gTmp === undefined) {
-					if (answer.includes("<" + tag + ":value>")) {
-						return Promise.reject(
-				 			"Sorry, I can't answer for '" + optionKey + "'\n" + 
-							"However, I can answer for the following options:\n  " + Object.keys(cmd.options).join("\n  ")
-						)
-					} else if (cmd.onUnknownOption) {
-						return this.customProcessor[cmd.onUnknownOption](options, id)
-					}
-				} else {
-					let optionValue = cmd.options[ gTmp[1] ]
-					if (optionValue.value) {
-						optionValue = optionValue.value
-					}
-					options[tag] = gTmp[1]
-					
-					if (optionValue.includes("function:")) {
-						optionValue = optionValue.replace("function:", "")
-
-						if (this.customProcessor === undefined || this.customProcessor[optionValue] === undefined) {
-							console.error("function for option value '" + optionValue + "' not present in custom parser;!")
-							return Promise.reject("this function is unavailable at this time")
-						}
-
-						return this.customProcessor[optionValue](options, id).then (value => {
-							return answer.replace("<" + tag + ":value>", value)
-						})
-					} else {
-						answer = answer.replace("<" + tag + ":value>", optionValue)
-					}
-				} 
-			}
-			
-		}
-
-		return Promise.resolve(answer)
-	}
-	tagsInAnswer (ans) {
-		let inTag = false
-		var tag = ""
-		for (var i = 0; i < ans.length;i++) {
-			if (ans[i] === "<") {
-				inTag = true
-			} else if (inTag && ans[i] === ":") {
-				inTag = false
-				break
-			} else if (inTag) {
-				tag += ans[i]
-			}
-		}
-		return [tag]
-	}
-
-	save () {
-		let str = JSON.stringify(this.data, null, "\t")
-		this.isSavingFile = true
-		fs.writeFile(this.filename, str, function (err) {
-  			if (err) {
-  				this.isSavingFile = false
-  				throw err
-  			}
-  			console.log('saved data file');
-		})
-	}
-
+    }
+    async forwardOutput (func, entities, user) {
+        if (!this.customProcessor || !this.customProcessor[func]) {
+            console.error("function for command '" + func + "' not present in custom parser")
+            throw "This function is unavailable at this time"
+        }
+        return await this.customProcessor[func](entities, user)
+    }
 }
+
+module.exports = LanguageProcessor
+
+//const processor = new LanguageProcessor ("new_test_data.json")
+//processor.output ("yo bro when can i get lunch").then (output => console.log (output))
+

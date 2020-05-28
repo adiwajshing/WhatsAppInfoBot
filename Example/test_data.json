@@ -1,102 +1,53 @@
 {
-	"metadata": {
+	"meta": {
 		"admins": [],
-		"unknownCommandText": "unknown command <input/>",
-		"whatsapp_creds_file": "./auth_info.json",
+		"parsingFailedText": "could not understand <input>",
+		"whatsAppCredsFile": "./auth_info.json",
 		"maxRequestsPerSecond": 0.5,
-		"responseTimeSeconds": [
-			0.5,
-			3
-		],
-		"defaultRegexBlank": "(?:the |)(.{1,15})",
-		"mapOnlyOptionInput": true,
 		"customProcessor": "./Example/Commands.Help"
 	},
-	"templates": {
-		"greeting": "(hey|hi|yo)(,|) <input/>",
-		"give": "(please |)(give|provide|share) <input/>",
-		"when2": "(when|(till |)what time) (does|is) <input/> (open|close|start|end)",
-		"when": "(till |)(when|(what |)time) (can i access|can i get|is|are) <input/>",
-		"what": "what((’|'|)s| is| are|) <input/>"
-	},
-	"responses": {
-		"help": {
-			"possibleQuestions": [
-				"help",
-				"help me",
-				{
-					"question": "<cmd/> help",
-					"templates": [""]
-				},
-				{
-					"question": "help (for |me with |)<cmd/>",
-					"templates": [""]
-				},
-				"what (all |)(can |)(you|u) do",
-				"?"
-			],
-			"answer": "function",
-			"options": {},
+	"intents": {
+        "greeting": {
+            "keywords": ["hi", "hello", "yo", "wassup", "messcat", "aye", "mate"],
+			"entities": {},
+			"answer": "Hello! Type 'help' to know what all I can do",
 			"meta": {}
-		},
-		"timings": {
-			"possibleQuestions": [
-				{
-					"question": "tim(e|ing(s|)) (for |4 |of )<time/>",
-					"templates": [
-						"what",
-						"give",
-						""
-					]
-				},
-				{
-					"question": "<time/> tim(e|ing(s|))",
-					"templates": [
-						"what",
-						"give",
-						""
-					]
-				},
-				{
-					"question": "<time/>",
-					"templates": [
-						"when",
-						"when2"
-					]
-				}
-			],
-			"answer": "*<time:key> timings:*\n <time:value>",
-			"options": {
-				"mail room": {
-					"keys": [
-						"mailroom", "mailzz room"
-					],
-					"value": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
-				},
-				"hot water": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
-			},
-			"meta": {
-				"userFacingName": ["timings", "timing", "time"],
+        },
+		"help": {
+            "keywords": ["help", "assist"],
+			"entities": {},
+			"answer": "function",
+			"meta": {}
+        },
+        "timings": {
+            "keywords": ["timings","time","when","timing","schedule","open","close"],
+            "answer": "*Timings for <entity:key> are:*\n  <entity:value>",
+            "entities": {
+                "piano room": "6:00AM-12:00AM",
+                "lunch": "12:15PM-02:30PM",
+                "breakfast": "08:00AM-10:30AM",
+                "snacks": "04:45PM-06:15PM",
+                "dinner": "07:30PM-10:15PM",
+                "laundry": "dropoff: Mon & Thu 08:00AM-02:00PM\npickup: Wed & Sat 04:30PM-06:00PM",
+                "tuck shop": "10:00AM-12:00AM",
+                "dosai": "12:00AM-12:00PM",
+                "amul": "11:00AM-11:00PM",
+                "dhaba": "02:00PM-04:00AM",
+                "cross access": "08:00AM-12:30AM",
+                "salon": {
+                    "alternates": ["parlour", "parlor", "saloon"],
+                    "value": "11:00AM-7:00PM, closed on tuesdays"
+                },
+                "library": "all the time fren, except friday",
+                "document centre": "08:00AM-07:00PM, all days except Sunday",
+                "fuel zone": "10:00AM-02:00AM",
+                "asg": "shuts at 11:30PM"
+            },
+            "meta": {
+                "userFacingName": ["timings"],
 				"description": "Timings for facilities",
-				"examples": ["mail room timings", "timing 4 mailroom"]
-			},
-			"onUnknownOption": ""
-		},
-		"greeting": {
-			"possibleQuestions": [
-				{
-					"question": "my name (is |)<name/>",
-					"templates": ["greeting", ""]
-				}
-			],
-			"answer": "oh hellu <name:key>",
-			"options": {},
-			"meta": {
-				"userFacingName": "greeting",
-				"description": "say hello with your name",
-				"examples": ["hi, my name is Jeff", "my name Jeff"]
-			},
-			"onUnknownOption": ""
-		}
-	}
+				"examples": ["mail room timings", "timing 4 dinner", "yo bro, when can i get lunch"]
+            }
+        }
+    }
 }

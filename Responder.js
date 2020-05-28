@@ -5,21 +5,14 @@ module.exports = class Responder {
 
 	constructor(languageProcessor) {
 		this.processor = languageProcessor
-
-		if (!languageProcessor.data.metadata.admins) {
-			languageProcessor.data.metadata.admins = []
+		
+		const meta = languageProcessor.data.meta
+		languageProcessor.data.meta = {
+			admins: meta.admins || [],
+			maxRequestsPerSecond: meta.maxRequestsPerSecond || 1.0,
+			whatsAppCredsFile: meta.whatsAppCredsFile || "auth_info.json"
 		}
-		if (!languageProcessor.data.metadata.maxRequestsPerSecond) {
-			languageProcessor.data.metadata.maxRequestsPerSecond = 1.0
-		}
-		if (!languageProcessor.data.metadata.responseTimeSeconds) {
-			languageProcessor.data.metadata.responseTimeSeconds = [0.5,3.0]
-		}
-		if (!languageProcessor.data.metadata.whatsapp_creds_file) {
-			languageProcessor.data.metadata.whatsapp_creds_file = "auth_info.json"
-		}
-
-		this.authFile = languageProcessor.data.metadata.whatsapp_creds_file
+		this.authFile = languageProcessor.data.meta.whatsAppCredsFile
 		this.admins = {}
 		this.log = { }
 		this.client = new WhatsAppWeb()
@@ -60,7 +53,7 @@ module.exports = class Responder {
 			}
 		}
 	}
-	onMessage (message) {
+	async onMessage (message) {
 		const senderID = message.key.remoteJid
 		const [notificationType, messageType] = this.client.getNotificationType (message)
 		if (notificationType !== "message") {
@@ -80,35 +73,24 @@ module.exports = class Responder {
 				return
 			}
 		}
-		this.log[senderID] = new Date().getTime()
-
-		var response
-		if (this.admins[senderID] === true && messageText.includes(";")) {
-			try {
-				this.processor.executeFromString(messageText)
-				response = Promise.resolve("ok")
-			} catch (err) {
-				response = Promise.resolve(err)
-			}
-		} else {
-			response = this.processor.getResponse(messageText, senderID)
-		}
 		
-		response.then (str => {
-			console.log(senderID + " sent message '" + messageText + "', responding with " + str)
-			str = str.charAt(0).toUpperCase() + str.slice(1)
-			this.sendMessage(senderID, str, message.key.id)
-		}).catch (err => {
+		this.log[senderID] = new Date().getTime()
+		try {
+			const response = await this.processor.output(messageText, senderID)
+			console.log(senderID + " sent message '" + messageText + "', responding with " + response)
+			this.sendMessage(senderID, response, message.key.id)
+		} catch (error) {
 			console.log(senderID + " sent message '" + messageText + "', got error " + err)
 			if (senderID.includes("@g.us")) {
-
+				// do not respond if its a group
 			} else {
 				this.sendMessage(senderID, err, message.key.id)
 			}
-		})
+		}
 	}
 	sendMessage(toContact, message, messageID) {
-		let delay = this.processor.data.metadata.responseTimeSeconds[0]
+		let delay = 0.25
+
 		setTimeout(() => this.client.updatePresence(toContact, WhatsAppWeb.Presence.available), delay*1000)
 		delay += 0.25
 		setTimeout(() => this.client.sendReadReceipt(toContact, messageID), delay*1000)
