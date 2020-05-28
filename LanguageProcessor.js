@@ -191,7 +191,7 @@ class LanguageProcessor {
                 var answer = data.answer
                 answer = answer.replace("<entity:key>", entity)
                 // account for the fact that the value may be a property
-                const value = data.entities [entity].value || data.entities [entity]
+                let value = data.entities [entity].value || data.entities [entity]
 
                 if (value.includes("function:")) {
                     value = value.replace("function:", "")
