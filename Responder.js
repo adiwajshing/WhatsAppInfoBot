@@ -13,17 +13,12 @@ module.exports = class Responder {
 			whatsAppCredsFile: meta.whatsAppCredsFile || "auth_info.json"
 		}
 		this.authFile = languageProcessor.data.meta.whatsAppCredsFile
-		this.admins = {}
 		this.log = { }
 		this.client = new WhatsAppWeb()
 		this.client.autoReconnect = true
 
 		this.client.setOnUnreadMessage (m => this.onMessage(m))
 		this.client.setOnUnexpectedDisconnect (err => console.log("disconnected unexpectedly: " + err))
-
-		for (var i in languageProcessor.data.metadata.admins) {
-			this.admins[ languageProcessor.data.metadata.admins[i] ] = true
-		}
 
 		setInterval (() => this.clearLog(), 10*60*1000)
 	}
