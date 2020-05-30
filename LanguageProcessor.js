@@ -20,6 +20,8 @@ class LanguageProcessor {
      * @param {Metadata} metadata - some metadata you might want to include in the processor for other intents to use
      */
     constructor(intentsDirectory, metadata) {
+        intentsDirectory = require("path").resolve (intentsDirectory)
+        
         this.intentsDirectory = intentsDirectory.endsWith ("/") ? intentsDirectory : intentsDirectory+"/"
         this.metadata = metadata
         
