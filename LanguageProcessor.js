@@ -41,8 +41,7 @@ class LanguageProcessor {
         const files = fs.readdirSync (this.intentsDirectory) // get all files in directory
         files.forEach (file => this.loadIntent(this.intentsDirectory + file))
         for (var intent in this.intents) {
-            const loadedAllIntents = this.intents[intent].loadedAllIntents
-            typeof loadedAllIntents === 'function' && loadedAllIntents()
+            typeof this.intents[intent].loadedAllIntents === 'function' && this.intents[intent].loadedAllIntents()
         }
     }
     /**
