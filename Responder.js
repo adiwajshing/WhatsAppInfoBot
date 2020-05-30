@@ -1,16 +1,18 @@
 const WhatsAppWeb = require("baileys")
 const fs = require("fs")
 
-module.exports = class Responder {
-
-	constructor(languageProcessor) {
-		this.processor = languageProcessor
+module.exports = class {
+	/**
+	 * Create a WhatsApp Responder
+	 * @param {function} processor - a function that can generate an output for a given text
+	 * @param {Object} metadata - metadata about the authentication file for WhatsApp
+	 * @param {string} metadata.authFile - path to the authentication credentials for WhatsApp
+	 * @param {number} metadata.maxRequestsPerSecond - maximum number of texts anybody can send & have them responded to in a second
+	 */
+	constructor(processor, metadata) {
+		this.processor = processor
+		this.metadata = metadata
 		
-		let data = languageProcessor.data
-		data.meta.whatsAppCredsFile = data.meta.whatsAppCredsFile || "auth_info.json"
-		data.meta.maxRequestsPerSecond = data.meta.maxRequestsPerSecond || 1.0,
-
-		this.authFile = data.meta.whatsAppCredsFile
 		this.log = { }
 		this.client = new WhatsAppWeb()
 		this.client.autoReconnect = true
@@ -23,13 +25,13 @@ module.exports = class Responder {
 	start () {
 		var authInfo = null
 		try {
-			const file = fs.readFileSync(this.authFile) // load the closed session back if it exists
+			const file = fs.readFileSync(this.metadata.authFile) // load the closed session back if it exists
 			authInfo = JSON.parse(file)
 		} catch { }
 		this.client.connect (authInfo, 20*1000)
 		.then (([user, _, __, unread]) => {
 			const authInfo = this.client.base64EncodedAuthInfo()
-			fs.writeFileSync(this.authFile, JSON.stringify(authInfo, null, "\t"))
+			fs.writeFileSync(this.metadata.authFile, JSON.stringify(authInfo, null, "\t"))
 			
 			console.log ("Using account of: " + user.name)
 			console.log ("Have " + unread.length + " pending messages")
@@ -60,7 +62,7 @@ module.exports = class Responder {
 		
 		if (this.log[senderID]) {
 			const diff = new Date().getTime() - this.log[senderID]
-			if (diff < (1000/this.processor.data.meta.maxRequestsPerSecond) ) {
+			if (diff < (1000/this.metadata.maxRequestsPerSecond) ) {
 				console.log("too many requests from: " + senderID)
 				return
 			}
@@ -68,14 +70,14 @@ module.exports = class Responder {
 		
 		this.log[senderID] = new Date().getTime()
 		try {
-			const response = await this.processor.output(messageText, senderID)
+			const response = await this.processor(messageText, senderID)
 			console.log(senderID + " sent message '" + messageText + "', responding with " + response)
 			this.sendMessage(senderID, response, message.key.id)
 		} catch (err) {
 			console.log(senderID + " sent message '" + messageText + "', got error " + err)
 			if (senderID.includes("@g.us")) {
 				// do not respond if its a group
-			} else {
+			} else if (typeof err === 'string') {
 				this.sendMessage(senderID, err, message.key.id)
 			}
 		}

@@ -1,0 +1,9 @@
+{
+    "admins": [
+        "23123123123",
+        "12123123123"
+    ],
+    "maxRequestsPerSecond": 0.33,
+    "parsingFailedText": "Sorry fren, I couldn't understand '<input>'. Type 'help' to know what all I can do",
+    "authFile": "./Example/auth_info.json"
+}

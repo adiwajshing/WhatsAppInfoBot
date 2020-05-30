@@ -1,31 +1,24 @@
-/* 
-    Example usage of a custom response. We create a help command here.
-    We go through all the response data we have & using some metadata help the user in interacting with the bot
-*/
-module.exports = class HelpCommand {
+module.exports = function (processor) {
+    this.keywords = ["help", "assist"]
+    this.entities = {}
+    this.meta = {}
 
-    constructor (processor) {
-        this.processor = processor
-        
-        this.helpAnswer = ""
-        this.userFacingNameMap = {}
-        
-        this.computeHelpAnswer()
-    }
-    // called if the commands were modified
-    commandsDidModify () {
+    this.processor = processor
+    
+    this.helpAnswer = ""
+    this.userFacingNameMap = {}
+    this.loadedAllIntents = () => this.computeHelpAnswer()
 
-    }
     /// compute the help answer from our JSON file
-    computeHelpAnswer () {
+    this.computeHelpAnswer = () => {
         this.userFacingNameMap = {}
         
         let helpEntities = {}
 		var ans = ["*I can provide information about:*"]
         // go through all commands
-		for (var intent in this.processor.data.intents) {
+		for (var intent in this.processor.intents) {
             // get the command's metadata
-            const meta = this.processor.data.intents[intent].meta
+            const meta = this.processor.intents[intent].meta
             // don't include the help command or commands that don't have the required metadata
 			if (intent === "help" || !meta || !meta.description) {
 				continue
@@ -47,7 +40,7 @@ module.exports = class HelpCommand {
 			ans.push(str)
         }
         // add a line about communicating with the admins
-		ans.push("For suggestions & feedback, WhatsApp: " + this.processor.data.meta.admins.join(", "))
+		ans.push("For suggestions & feedback, WhatsApp: " + this.processor.metadata.admins.join(", "))
         this.helpAnswer = ans.join("\n\n")
         this.processor.updateEntities ("help", helpEntities)
 
@@ -58,7 +51,7 @@ module.exports = class HelpCommand {
      * @param {string[]} entities 
      * @param {string} user 
      */
-	help (entities, user) {
+    this.answer = (entities, user) => {
         // if no specific help was asked for
 		if (Object.keys(entities).length === 0) {
             // give generic answer
@@ -66,7 +59,7 @@ module.exports = class HelpCommand {
 		} else {
             return entities.map (str => {
                 const entity = this.userFacingNameMap[str]
-                const data = this.processor.data.intents[entity]
+                const data = this.processor.intents[entity]
                 // get the actual name of the command
                 if (!data) { // if the command does not exist
                     throw "No help available for '" + option + "' :/"
@@ -88,5 +81,5 @@ module.exports = class HelpCommand {
                 return ans.join("\n")
             })            
 		}
-	}
+    }
 }

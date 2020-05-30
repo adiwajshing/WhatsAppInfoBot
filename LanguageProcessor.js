@@ -4,72 +4,78 @@ const natural = require('natural')
  * @typedef {Object} IntentData
  * @property {string[]} keywords - The keywords required to recognize an intent
  * @property {Object.<string, object>} entities - The entities in this intent
- * @property {string} answer - What to respond with when a user fires this intent (include <entity:key> & <entity:value> for entities)
+ * @property {string | function} answer - What to respond with when a user fires this intent (include <entity:key> & <entity:value> for entities)
  * @property {Object.<string, string>} meta - Dictionary to store some metadata
  */
 /**
- * @typedef {Object} Data
- * @property {object} meta - some metadata for this file
- * @property {string} meta.parsingFailedText - text to respond with, when intents could not be recognized
- * @property {number} [meta.maxRequestsPerSecond] - max WhatsApp requests a user can make in a second
- * @property {string} [meta.whatsAppCredsFile] - file to store authentication credentials of WhatsApp Web
- * @property {string} [meta.customProcessor] - file path to class for custom responding to intents
- * @property {Object.<string, IntentData>} intents - actual intents in the data
+ * @typedef {Object} Metadata
+ * @property {string} parsingFailedText - text to respond with, when intents could not be recognized
+ * @property {number} [maxRequestsPerSecond] - max WhatsApp requests a user can make in a second
+ * @property {string} [whatsAppCredsFile] - file to store authentication credentials of WhatsApp Web
  */
 class LanguageProcessor {
     /**
      * Construct a new instance of a LanguageProcessor
-     * @param {string} filename - filename of the data file
+     * @param {string} intentsDirectory - directory where all the intents are placed
+     * @param {Metadata} metadata - some metadata you might want to include in the processor for other intents to use
      */
-    constructor(filename) {
-        this.filename = filename
-        /** @type {Data} */
-		this.data = { }
-		this.customProcessor = null
+    constructor(intentsDirectory, metadata) {
+        this.intentsDirectory = intentsDirectory.endsWith ("/") ? intentsDirectory : intentsDirectory+"/"
+        this.metadata = metadata
+        
+        /** @type {Object.<string, IntentData>} */
+        this.intents = {}
+        
         this.tokenizer = new natural.RegexpTokenizer ({pattern: /\ /})
         this.chat = require ("./LanguageProcessor.CMDLine").chat
 
-		this.loadData()
+        this.loadIntents ()
+        this.output = this.output.bind (this)
     }
-    /** Load data from the file */
-    loadData () {
-        this.data = JSON.parse( fs.readFileSync(this.filename) )
-        console.log("read from file " + this.filename)
-        
-        this.parseIntents(this.data.intents)
-
-        if (this.customProcessor) {
-            delete this.customProcessor	
-        }
-        const customProcessorFile = this.data.meta.customProcessor
-        if (customProcessorFile && customProcessorFile !== "") {
-            const LanguageProcessorExt = require(customProcessorFile)
-            this.customProcessor = new LanguageProcessorExt(this)
-            console.log("loaded custom processor from file: " + customProcessorFile)
-        }
-    }
-    /**
-     * 
-     * @param {IntentData[]} intents 
-     */
-    parseIntents (intents) {
+    /** Load intents from the directory */
+    loadIntents () {
         this.trie = new natural.Trie(false)
         this.entityMap = {}
+        this.intents = {}
 
-        for (var intent in intents) {
-            const data = intents[intent]
-            
-            this.trie.addStrings (data.keywords)
-            this.updateEntities (intent, data.entities)
+        const files = fs.readdirSync (this.intentsDirectory) // get all files in directory
+        files.forEach (file => this.loadIntent(this.intentsDirectory + file))
+        for (var intent in this.intents) {
+            const loadedAllIntents = this.intents[intent].loadedAllIntents
+            typeof loadedAllIntents === 'function' && loadedAllIntents()
         }
     }
     /**
-     * Update the entities for a given intent
-     * @param {string} intent 
-     * @param {string[]} entities 
+     * Load an intent into the LanguageProcessor
+     * @param {string} file - full path to the intent  
+     */
+    loadIntent (file) {
+        /** @type {IntentData} */
+        var intent
+        if (file.endsWith(".js")) {
+            intent = require (file)
+            typeof intent === 'function' && (intent = new intent (this)) // if the file has a class
+            file = file.slice (0, file.length-3) // remove extension
+        } else if (file.endsWith(".json")) {
+            intent = JSON.parse( fs.readFileSync(file) )
+            file = file.slice (0, file.length-5) // remove extension
+        } else {
+            return console.warn ("cannot load file (has to be a .json or .js): " + file)
+        }
+        file = file.split ("/").slice(-1)[0] // get actual name of the file
+        this.trie.addStrings (intent.keywords) // add keywords to trie
+        this.updateEntities (file, intent.entities) // extract all the entities
+        
+        console.log("loaded intent " + file)
+        this.intents[file] = intent // add to intents dictionary
+    }
+    /**
+     * Update the entities of an intent
+     * @param {string} intent - name of the intent  
+     * @param {bject.<string, string>} entities - the new entities
      */
     updateEntities (intent, entities) {
-        this.entityMap [intent] = {}
+        this.entityMap [intent] = {} 
         for (var entity in entities) {
             const allEntities = [entity].concat( entities[entity].alternates || [] )
             allEntities.forEach(alt => this.entityMap[intent][alt] = entity)
@@ -112,8 +118,7 @@ class LanguageProcessor {
          */
         const getIntents = stemmed_words => {
             const intent_wordcloud = stemmed_words.filter (word => this.trie.contains(word))
-            const intents = this.data.intents
-            return intent_wordcloud.flatMap (word => Object.keys(intents).filter (intent => intents[intent].keywords.includes (word)))
+            return intent_wordcloud.flatMap (word => Object.keys(this.intents).filter (intent => this.intents[intent].keywords.includes (word)))
         }
         /**
          * Extract the entities for each corresponding intent
@@ -151,7 +156,7 @@ class LanguageProcessor {
         if (intentCount > 1 && intents.greeting) { // if more than one intent was recognized & a greeting was detected too
             delete intents.greeting // remove the greeting intent
         } if (intentCount == 0) {
-            throw this.data.meta.parsingFailedText.replace ("<input>", input)
+            throw this.metadata.parsingFailedText.replace ("<input>", input)
         }
         console.log ("intents: " + JSON.stringify(intents))
         // compute the output for each intent & map the errors as text
@@ -175,41 +180,28 @@ class LanguageProcessor {
      * @returns {string[]} - array of answers
      */
     async computeOutput (intent, entities, user) {
-        const data = this.data.intents[intent] // data for the intent
+        const data = this.intents[intent] // data for the intent
         
-		if (data.answer === "function") { // if the intent requires a function to answer
-			return this.forwardOutput (intent, entities, user)
+        if (typeof data.answer === "function") { // if the intent requires a function to answer
+            return data.answer (entities, user)
 		} else if (Object.keys(entities).length === 0) {
             if (data.answer.includes("<")) { // if the answer requires an entity to answer but no entities were parsed
-                throw "Sorry, I can't answer this specific query.'\n" + 
+                throw "Sorry, I can't answer this specific query.\n" + 
                       "However, I can answer for the following options:\n  " + Object.keys(data.entities).join("\n  ")
-            } else {
-                return data.answer
             }
+            return data.answer
         } else {
             const answers = entities.map (entity => {
-                var answer = data.answer
-                answer = answer.replace("<entity:key>", entity)
-                // account for the fact that the value may be a property
-                let value = data.entities [entity].value || data.entities [entity]
-
-                if (value.includes("function:")) {
-                    value = value.replace("function:", "")
-                    return this.forwardOutput (value, entities, user)
+                // account for the fact that the 'value' may be a property
+                const value = data.entities [entity].value || data.entities [entity]
+                if (typeof value === "function") {
+                    return value (entities, user)
                 } else {
-                    answer = Promise.resolve( answer.replace("<entity:value>", value) )
+                    return data.answer.replace("<entity:key>", entity).replace("<entity:value>", value)
                 }
-                return answer
             })
             return Promise.all (answers)
 		}
-    }
-    async forwardOutput (func, entities, user) {
-        if (!this.customProcessor || !this.customProcessor[func]) {
-            console.error("function for command '" + func + "' not present in custom parser")
-            throw "This function is unavailable at this time"
-        }
-        return await this.customProcessor[func](entities, user)
     }
 }
 
