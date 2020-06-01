@@ -1,212 +1,119 @@
-# WhatsappInfoBot
+# WhatsappInfoBot - A framework to build bots generally, but specifically on WhatsApp. 
 
-## Install: 
+It uses [natural](https://github.com/) (implemented by [@actuallysoham](https://github.com/actuallysoham)) to perform the natural language processing part & [Baileys](https://github.com/adiwajshing/Baileys) to interact with WhatsApp.
 
-1. Point to your project directory in terminal:
+## Install
+
+Install using npm: ` npm install github:adiwajshing/WhatsappInfoBot `
+
+## Building Intents
+
+The library follows a modular design. Every intent must be placed in separate files & in a single folder. So, you will have an `intents/` directory and in there a collection of intents that are either programmatic `.js` files or `.json` files. 
+
+For example, a simple intent to answer queries about timings could look look like this:
+
+[`timings.json`](/Example/intents/timings.json)
+``` javascript
+{
+    "keywords": ["timings","time","when","timing","schedule","open","close"], // the keywords to identify an intent
+    "answer": "*Timings for <entity:key> are:*\n <entity:value>", // the answer for this intent
+    "entities": { // list of things the bot can answer for the `timings` intent
+        "piano room": "6:00AM-12:00AM",
+        "lunch": "12:15PM-02:30PM",
+        "breakfast": "08:00AM-10:30AM",
+        "snacks": "04:45PM-06:15PM",
+        "dinner": "07:30PM-10:15PM",
+        "laundry": "dropoff: Mon & Thu 08:00AM-02:00PM\npickup: Wed & Sat 04:30PM-06:00PM",
+        "library": "all the time fren, except friday",
+        "salon": {
+            "alternates": ["parlour", "parlor", "saloon"], // alternate names for the same entity
+            "value": "11:00AM-7:00PM, closed on tuesdays"
+        },
+        "asg": "shuts at 11:30PM"
+    },
+    "meta": { // some optional metadata to maybe create user facing documentation, see Example/intents/help.js
+        "userFacingName": ["timings"],
+        "description": "Timings for facilities",
+        "examples": ["mail room timings", "timing 4 dinner", "yo bro, when can i get lunch"]
+    }
+}
+```
+
+So, if somebody asks the bot *ayy, till when does the parlour stay open?*, the bot will reply with:
     ```
-    cd path/to/myproject/
+    Timings for salon:
+    11:00AM-7:00PM, closed on tuesdays
     ```
-2. Add it using npm:
-    ```
-    npm install github:adiwajshing/WhatsappInfoBot
-    ```
+
+Here, `<entity:key>` maps onto the key, `salon` & `<entity:value>` maps onto the value, `11:00AM-7:00PM, closed on tuesdays`.
+Moreover, because `parlour` is an alternate name for *salon*, the library maps `parlour` back to the true name `salon` and then responds.
+
+Sometimes, statically typing intents like this is too much of a pain or impossible to do. What if one wants to fetch the weather? Then, one could use a js class to describe the intent.
+
+For example, `weather.js` could look like the following:
+
+``` javascript
+
+module.exports = class {
+    constructor (processor) {
+        this.processor = processor // the instance of LanguageProcessor.js that created this instance
+        this.keywords = ["weather", "like"] // keywords to identify the intent
+        this.entities = {} // leave empty for now, you can fetch city names later and update the entities
+        this.meta = { // set some metadata
+            "userFacingName": ["weather"],
+            "description": "Ask about the weather in different cities",
+            "examples": ["weather in SF?", "new york weather", "listen fren, you better tell me what its like in Bombay"]
+        }
+        fetchCities ()
+    }
+    async fetchCities () {
+        // fetch the cities you can answer for, possibly using a REST API
+        // fetch weather.com/rest or something
+        // then call this function to finally update the entities, you can leave the values blank because the answer will be fetched
+        updateEntities ("weather", {"new york": "", "sf": "", "new delhi": "", "tokyo": ""}) 
+    }
+    /**
+     * Async function that is called when somebody calls the `weather` command
+     * @param {string[]} entities - what city?
+     * @param {string} user - ID of the user
+     */
+    async answer (entities, user) {
+        // fetch the cities you can answer for, possibly using a REST API
+        // fetch weather.com/rest or something
+        return "lol I dont know"
+    }
+}
+
+```
 
 ## Usage:
 
-1. Create your data JSON file, programmed responders (more on that later)
-2. Import the module: 
+1. Populate your intents folder with the intents you built. See this [example folder](/Example) for reference.
+2. To simply test your intents out in terminal, see [here](/Example/chat.js):
+    ``` javascript
+    const LanguageProcessor = require('WhatsAppInfoBot/LanguageProcessor.js')
+    const processor = new LanguageProcessor("./path/to/intents/", {parsingFailedText: "Oh no, I could not understand <input>"})
+    processor.chat() // chat in terminal
+    ```
+2. To run your bot on WhatsApp, see [here](/Example/index.js): 
     ``` javascript
         const LanguageProcessor = require("WhatsAppInfoBot/LanguageProcessor.js")
         const WhatsAppResponder = require("WhatsAppInfoBot/Responder.js")
-    ```
-3. Create the instances:
-    ``` javascript
-        const processor = new LanguageProcessor("my_data.json")
-        const responder = new WhatsAppResponder(processor)
-    ```
-    The  ```LanguageProcessor``` module is fed all the text that the bot recieves, and using the JSON file, parses the text & finds the appropriate response.
-    Its constructor takes in the path to the data JSON file.
 
-    The  ```WhatsAppResponder``` module uses [Baileys](https://github.com/adiwajshing/Baileys) to interact with WhatsApp. And it uses the ```LanguageProcessor``` module to parse the messages recieved from WhatsApp, & sends back the response computed.
-4. Start recieving messages:
-    ``` javascript
-        responder.start()
+        const metadata = {
+            parsingFailedText: "Oh no, I could not understand <input>", // what to say when the bot failed to understand what was being said
+            admins: [ // admins of this bot, optional, is used for the help.js intent
+                "23123123123",
+                "12123123123"
+            ],
+            maxRequestsPerSecond: 0.33, // max requests a user can make in a second
+            authFile: "./Example/auth_info.json" // path to the file where the WhatsApp credentials will be stored
+        }
+        const processor = new LanguageProcessor("./Example/intents/", metadata) // create the processor
+        new Responder (processor.output, metadata).start () // start the WhatsApp Responder
     ```
+    The first time you run the bot on WhatsApp, you will have to scan the QR code to enable WhatsApp Web.
     Once you run this code, the responder will now connect to WhatsApp & it'll print out a QR code for you to scan with WhatsApp on your phone. 
     Once you scan it with your phone, the bot will start recieving & responding to messages.
     
-    Note: the bot will try & respond to all unread messages on your WhatsApp.
-5. If you want to just test out how the bot's language parsing, or want to chat with it in terminal, run the following code:
-    ``` javascript
-        const LanguageProcessor = require("WhatsAppInfoBot/LanguageProcessor.js")
-        const processor = new LanguageProcessor("my_data.json")
-        processor.chat()
-    ```
-6. An example of the usage of the bot has been provided, you can run it using ```cd WhatsAppInfoBot/Example; node chat.js;```
-
-## The Data
-
-Before working with the data, please be familiar with regular expressions. If you're not, please [see here]().
-Also, an example of the data file is provided in the [examples folder](Example/test_data.json)
-
-The JSON is structured as 3 objects:
-``` javascript
-    {
-        "metadata": { ... },
-        "templates": { ... },
-        "responses": { ... }
-    }
-```
-
-#### metadata
-
-Contains some basic information, and holds the following fields:
-- ``` "admins": ["10digitphone", "10digitphone"] ``` -- the admins for WhatsApp interaction (does not do much right now)
-- ``` "unknownCommandText": "I don't understand <input/>" ```  -- what the bot responds with if it could not understand what was said
-- ``` "whatsapp_creds_file": "auth_info.json" ``` -- JSON file to store the credentials for WhatsApp, so that you don't have to scan with your phone everytime you want to log in
-- ``` "maxRequestsPerSecond": 0.5 ``` -- max WhatsApp texts a user can send to the bot in one second before the bot stops responding
-- ``` "responseTimeSeconds": [0.5, 3]``` -- responds to a user with a text within the given seconds
-- ``` "defaultRegexBlank": "(?:the |)(.{1,15})" ``` -- the default template for a dynamic input 
-- ``` "mapOnlyOptionInput": true ``` -- if set to true, a user can just send in the name of an option (eg. "mail room") and the bot will map it to the question(s) it is associated with and respond.
-- ``` "customProcessor": "./Example/Commands.Help.js" ``` -- the filename of the processor for custom commands
-
-#### templates
-
-Contains a list of templates one can associate questions with. 
-
-One could have multiple questions, in the form of a 'what' question. For example, 'what is a watermelon', 'what's a watermelon', 'what are the timings for the X facility'. So, instead of having to type all the ways one can type all these questions, it would be simpler to just create a template for all 'what' questions and associate questions with that template. This is exactly what templates do.
-
-The templates are all regular expressions with an ```<input/>``` tag that acts as the placeholder for the actual question.
-
-Examples:
-- ``` "greeting": "(hey|hi|yo)(,|) <input/>" ``` (the greeting template is special & optional, it is automatically associated with every question)
-- ``` "what": "what((’|'|)s| is| are|) <input/>" ```
-- ``` "when2": "(when|(till |)what time) (does|is) <input/> (open|close|start|end)" ```
-- ``` "when": "(till |)(when|(what |)time) (can i access|can i get|is|are) <input/>" ```
-
-#### responses
-
-Now, we come to the meat of the data file. This part contains data about all the questions the bot can answer. It is a dictionary, mapping the name of a command to information about it. 
-
-**Simple example:**
-``` javascript
-    "commandName": {
-        "possibleQuestions": [
-            "what an amazing question",
-            {
-                "question": "is a (regex|regexp|regular expression) question",
-                "templates": ["what"]
-            },
-            {
-                "question": "to use (regex|regexp|regular expression) question",
-                "templates": ["when", ""]
-            }
-        ],
-        "answer": "look it up fren",
-        "options": {},
-        "meta": {}
-    }
-```
-
-1. the ``` possibleQuestions ``` field holds an array of the possible questions that are associated with this command. 
-    - The first question will match only when someone types in the text exactly like that (no regex).
-    - The second question is a regex string and will match only with the "what" template. It won't match without the what template.
-    - The third question is also a regex string and will match with the "when" template & by its own. The "" string in the templates field allows for that
-
-2. the ``` answer ``` field holds a string for the answer. The bot will respond with this string when one of the questions match.
-
-**Example of a command with dyanmic input:**
-``` javascript
-"timings": {
-    "possibleQuestions": [
-        {
-            "question": "tim(e|ing(s|)) (for |4 |of )<time/>",
-            "templates": ["what","give",""]
-        },
-        {
-            "question": "<time/> tim(e|ing(s|))",
-            "templates": ["what","give",""]
-        },
-        {
-            "question": "<time/>",
-            "templates": ["when","when2"]
-        }
-    ],
-    "answer": "*<time:key> timings:*\n <time:value>",
-    "options": {
-        "mail room": {
-            "keys": ["mailroom", "mailzz room"],
-            "value": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
-        },
-        "hot water": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
-    },
-    "onUnknownOption": "",
-    "meta": {
-        "userFacingName": ["timings", "timing", "time"],
-        "description": "Timings for facilities",
-        "examples": ["mail room timings", "timing 4 mailroom"]
-    }
-}
-```
-
-1. this time, the ``` possibleQuestions ``` contain a tag -- ```<time/>```. The name of this tag is arbritrary and holds no value. The tag is a placeholder for any of the options laid out in the ``` options ``` field. However, for a question with a straightforward text answer, you can only have one option.
-2. the answer field contains a ``` <time:key> ``` & ``` <time:value> ``` field. The 'key' represents the name of the option the user typed in, whereas the value is the value associated with that option. 
-    For example if the question is "what are the timings for hot water?", then ``` <time/> = "hot water",  <time:key> = "hot water", <time:value> = "Mon-Fri: 07:00PM-10:00PM,..." ```
-3. the ``` options ``` field contains all the options the tag (```<time/>```) can be the placeholder for. If an option can be associated with more than one strings, then that can be accomodated as well. For example, you want "mail room", "mailroom" & "mailzz room" to all be associated with one answer, then you could insert the option as follows:
-    ``` javascript
-        "mail room": {
-            "keys": ["mailroom", "mailzz room"],
-            "value": "Mon-Fri: 07:00PM-10:00PM, 07:00AM-10:00PM\nSat-Sun: 08:00AM-11:AM, 08:00PM-11:00PM"
-        }
-    ```
-4. the ``` onUnknownOption ``` field contains the name of a function that the bot could execute (if not empty) in case the option the user entered could not be matched with anything. 
-
-**Example of functional command:**
-``` javascript
-"theTime": {
-    "possibleQuestions": [
-        {
-            "question": "time in <place/>",
-            "templates": ["what","give",""]
-        }
-    ],
-    "answer": "*Time in <place:key>*:\n<place:value>",
-    "options": {
-        "New York": "function:timePlace",
-        "New Delhi": "function:timePlace",
-        "San Francisco": "I won't tell you"
-    },
-    "onUnknownOption": "function:timePlace",
-    "meta": {
-        "userFacingName": ["timings", "timing", "time"],
-        "description": "the time in a given city",
-        "examples": ["mail room timings", "timing 4 mailroom"]
-    }
-}
-```
-
-This time, when an option matches or even if it doesn't a function is called to process the request, the function being ```timePlace()```. Unless, it's the "San Francisco" option, then it would just respond with "I won't tell you". One can use a mixture of functions & plain texts in a command.
-
-The ```timePlace()``` function must be placed in the ```"customProcessor"``` file mentioned in the metadata and could be structured as:
-``` javascript
-function timePlace (options, id) {
-    console.log(options) // output: {place: "Tokyo"}
-    const date = new Date()
-    // too lazy to write code for time zones or whatever
-    return Promise.resolve(date.toString())
-}
-```
-**Note:** the function must return a promise. This allows the bot to fetch things asynchronously from the web and respond in a few seconds too, without holding up the application.
-
-So, when someone types in "what's the time in Tokyo?": 
-1. the bot will check if such an option exists.
-2. as it doesn't it'll fallback on the ```onUnknownOption``` field.
-3. if the ```onUnknownOption``` field contains a function, which it does in this case, it'll execute the function.
-4. then it'll place the returned value of the function in place of the ```<place:value>``` tag.
-5. finally, the bot will respond with:
-    "*Time in Tokyo*:
-    13:20 24 April 2020"
-
-**Other stuff:**
-- Moreover, a functional command can have more than one command. In the previous example, it could also have a ```<details/>``` tag in addition to the ```<place/>```.
-- Also, the "answer" field can point to a function as well.
+    **Note:** the bot will try & respond to all unread messages on your WhatsApp.
