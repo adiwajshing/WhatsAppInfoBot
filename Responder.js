@@ -1,4 +1,4 @@
-const WhatsAppWeb = require("baileys")
+const WhatsAppWeb = require("@adiwajshing/baileys")
 const fs = require("fs")
 
 module.exports = class {
@@ -58,7 +58,7 @@ module.exports = class {
 			console.log("recieved message from " + senderID + " of type " + messageType + "; cannot be responded to")
 			return
 		}
-		const messageText = message.message.conversation ?? message.message.text
+		const messageText = message.message.conversation || message.message.text
 		
 		if (this.log[senderID]) {
 			const diff = new Date().getTime() - this.log[senderID]
