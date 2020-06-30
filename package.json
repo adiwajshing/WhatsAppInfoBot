@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@adiwajshing/baileys": "^1.1.1",
+    "baileys": "^1.0.0",
     "natural": "^2.1.5"
   }
 }
