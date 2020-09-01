@@ -89,9 +89,10 @@ module.exports = class {
 			if (senderID.includes("@g.us")) return
 			response = err.message || err
 		}
-
-		console.log(senderID + " sent message '" + messageText + "', responding with " + response)
-		await this.sendMessage(senderID, response, message)
+		if (response) {
+			console.log(senderID + " sent message '" + messageText + "', responding with " + response)
+			await this.sendMessage(senderID, response, message)
+		}
 	}
 	async sendMessage(toContact, message, quoted) {
 		await this.client.updatePresence(toContact, Baileys.Presence.available)
