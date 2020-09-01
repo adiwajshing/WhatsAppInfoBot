@@ -13,7 +13,7 @@ module.exports = {
 						console.log("response:\n" + str) 
 						getInput()
 					}).catch (err => {
-						console.log("fallback:\n" + err) 
+						console.log("fallback:\n" + (err.message || err)) 
 						getInput()
 					})
 				}

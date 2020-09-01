@@ -107,6 +107,7 @@ module.exports = class {
                 "12123123123"
             ],
             maxRequestsPerSecond: 0.33, // max requests a user can make in a second
+            respondToPendingMessages: false,
             authFile: "./Example/auth_info.json" // path to the file where the WhatsApp credentials will be stored
         }
         const processor = new LanguageProcessor("./Example/intents/", metadata) // create the processor

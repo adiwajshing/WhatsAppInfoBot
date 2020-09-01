@@ -11,13 +11,12 @@ const natural = require('natural')
  * @typedef {Object} Metadata
  * @property {string} parsingFailedText - text to respond with, when intents could not be recognized
  * @property {number} [maxRequestsPerSecond] - max WhatsApp requests a user can make in a second
- * @property {string} [whatsAppCredsFile] - file to store authentication credentials of WhatsApp Web
  */
 class LanguageProcessor {
     /**
      * Construct a new instance of a LanguageProcessor
      * @param {string} intentsDirectory - directory where all the intents are placed
-     * @param {Metadata} metadata - some metadata you might want to include in the processor for other intents to use
+     * @param {Metadata } metadata - some metadata you might want to include in the processor for other intents to use
      */
     constructor(intentsDirectory, metadata) {
         intentsDirectory = require("path").resolve (intentsDirectory)
@@ -157,21 +156,23 @@ class LanguageProcessor {
         if (intentCount > 1 && intents.greeting) { // if more than one intent was recognized & a greeting was detected too
             delete intents.greeting // remove the greeting intent
         } if (intentCount == 0) {
-            throw this.metadata.parsingFailedText.replace ("<input>", input)
+            throw new Error( 
+                this.metadata.parsingFailedText.replace ("<input>", input) 
+            )
         }
-        console.log ("intents: " + JSON.stringify(intents))
+        //console.log ("intents: " + JSON.stringify(intents))
         // compute the output for each intent & map the errors as text
         const tasks = Object.keys(intents).map (intent => this.computeOutput (intent, intents[intent], user))
         
         const outputs = await Promise.allSettled (tasks)
-        const correctOutputs = outputs.filter (output => output.status==="fulfilled")
+        const correctOutputs = outputs.filter (output => output.status === "fulfilled")
 
         if (correctOutputs.length > 0) {
             const strings = correctOutputs.map (output => output.value).flat ()
             return compileAnswer (strings)
         } else {
             const strings = outputs.map (output => output.value || output.reason).flat ()
-            throw compileAnswer (strings)
+            throw new Error( compileAnswer (strings) )
         }
     }
     /**
@@ -187,19 +188,18 @@ class LanguageProcessor {
             return data.answer (entities, user)
 		} else if (Object.keys(entities).length === 0) {
             if (data.answer.includes("<")) { // if the answer requires an entity to answer but no entities were parsed
-                throw "Sorry, I can't answer this specific query.\n" + 
+                throw new Error(
+                      "Sorry, I can't answer this specific query.\n" + 
                       "However, I can answer for the following options:\n  " + Object.keys(data.entities).join("\n  ")
+                )
             }
             return data.answer
         } else {
             const answers = entities.map (entity => {
                 // account for the fact that the 'value' may be a property
                 const value = data.entities [entity].value || data.entities [entity]
-                if (typeof value === "function") {
-                    return value (entities, user)
-                } else {
-                    return data.answer.replace("<entity:key>", entity).replace("<entity:value>", value)
-                }
+                if (typeof value === "function") return value (entities, user)
+                else return data.answer.replace("<entity:key>", entity).replace("<entity:value>", value)
             })
             return Promise.all (answers)
 		}

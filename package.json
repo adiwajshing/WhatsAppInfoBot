@@ -1,16 +1,17 @@
 {
-  "name": "WhatsAppInfoBot",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@adiwajshing/whatsapp-info-bot",
+  "version": "1.1.0",
+  "description": "A framework to make bots",
   "main": "index.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js",
+    "example": "node Example/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "baileys": "^1.0.0",
+    "@adiwajshing/baileys": "github:adiwajshing/baileys",
     "natural": "^2.1.5"
   }
 }
