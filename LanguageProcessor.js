@@ -15,13 +15,17 @@ const natural = require('natural')
 class LanguageProcessor {
     /**
      * Construct a new instance of a LanguageProcessor
-     * @param {string} intentsDirectory - directory where all the intents are placed
+     * @param {string | string[]} intentsDirectories - directory where all the intents are placed
      * @param {Metadata } metadata - some metadata you might want to include in the processor for other intents to use
      */
-    constructor(intentsDirectory, metadata) {
-        intentsDirectory = require("path").resolve (intentsDirectory)
+    constructor(intentsDirectories, metadata) {
+        intentsDirectories = typeof intentsDirectories === 'string' ? [ intentsDirectories ] : intentsDirectories
         
-        this.intentsDirectory = intentsDirectory.endsWith ("/") ? intentsDirectory : intentsDirectory+"/"
+        this.intentsDirectories = intentsDirectories.map (directory => {
+            directory = require("path").resolve (directory)
+            directory = directory.endsWith ("/") ? directory : directory+"/"
+            return directory
+        })
         this.metadata = metadata
         
         /** @type {Object.<string, IntentData>} */
@@ -39,8 +43,11 @@ class LanguageProcessor {
         this.entityMap = {}
         this.intents = {}
 
-        const files = fs.readdirSync (this.intentsDirectory) // get all files in directory
-        files.forEach (file => this.loadIntent(this.intentsDirectory + file))
+        const files = this.intentsDirectories.flatMap (directory => (
+            fs.readdirSync (directory).map (file => `${directory}${file}`)
+        )) // get all files in directory
+        
+        files.forEach (file => this.loadIntent(file))
         for (var intent in this.intents) {
             typeof this.intents[intent].loadedAllIntents === 'function' && this.intents[intent].loadedAllIntents()
         }

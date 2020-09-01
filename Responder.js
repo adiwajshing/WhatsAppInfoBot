@@ -87,7 +87,7 @@ module.exports = class {
 		} catch (err) {
 			// do not respond if its a group
 			if (senderID.includes("@g.us")) return
-			response = err.message || err
+			response = (err.message || err).replace ('Error: ', '')
 		}
 		if (response) {
 			console.log(senderID + " sent message '" + messageText + "', responding with " + response)
