@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@adiwajshing/baileys": "github:adiwajshing/baileys",
+    "@adiwajshing/baileys": "^3.0.0",
     "natural": "^2.1.5"
   }
 }
