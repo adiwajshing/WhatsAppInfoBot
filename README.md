@@ -113,7 +113,7 @@ module.exports = class {
         const processor = new LanguageProcessor("./Example/intents/", metadata) // create the processor
         new Responder (processor.output, metadata).start () // start the WhatsApp Responder
     ```
-    The first time you run the bot on WhatsApp, you will have to scan the QR code to enable WhatsApp Web.
+    The first time you run the bot on WhatsApp, you will have to scan the QR (important: use a dark background in your shell when run the project) code to enable WhatsApp Web.
     Once you run this code, the responder will now connect to WhatsApp & it'll print out a QR code for you to scan with WhatsApp on your phone. 
     Once you scan it with your phone, the bot will start recieving & responding to messages.
     
