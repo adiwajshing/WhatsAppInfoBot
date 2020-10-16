@@ -59,7 +59,7 @@ module.exports = class {
 		if (message.key.fromMe) return
 
 		const senderID = message.key.remoteJid
-		const messageText = message.message?.conversation || message.message?.extendedTextMessage?.text
+		const messageText = message.message.conversation || message.message.extendedTextMessage.text
 		if (!message.message) {
 			console.log("recieved notification from " + senderID + " of type " + message.toJSON().messageStubType + "; cannot be responded to")
 			return
@@ -72,7 +72,7 @@ module.exports = class {
 		// if a delay trigger is specified
 		if (this.metadata.minimumDelayTriggerS && this.metadata.delayMessage) {
 			// get timestamp of message
-			const sendTime = message.messageTimestamp?.low || message.messageTimestamp
+			const sendTime = message.messageTimestamp.low || message.messageTimestamp
 			const diff = (new Date().getTime()/1000)-sendTime
 			if (diff > this.metadata.minimumDelayTriggerS) {
 				console.log (`been ${diff} seconds since message, responding with delay message to ${senderID}`)
