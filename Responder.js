@@ -18,8 +18,6 @@ module.exports = class {
 		
 		this.client = new Baileys.WAConnection()
 		this.client.autoReconnect = Baileys.ReconnectMode.onAllErrors
-		this.client.connectOptions.maxRetries = Infinity
-		this.client.connectOptions.timeoutMs = 30*1000
 
 		this.client.on ('message-new', m => this.onMessage(m))
 	}
@@ -42,7 +40,6 @@ module.exports = class {
 		}
 		console.log ("Using account of: " + this.client.user.name)
 		
-
 		if (this.metadata.respondToPendingMessages) {
 			const unreadMessages = await this.client.loadAllUnreadMessages ()
 			console.log (`responding to ${unreadMessages.length} unread messages`)
