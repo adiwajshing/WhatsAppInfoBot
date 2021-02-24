@@ -1,17 +1,31 @@
 {
   "name": "@adiwajshing/whatsapp-info-bot",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "A framework to make bots",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "node test.js",
-    "example": "node Example/index.js"
+    "test:chat": "ts-node src/example/intents --chat",
+    "example": "ts-node src/example/index.ts",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@adiwajshing/baileys": "^3.0.0",
+    "got": "^11.8.1",
     "natural": "^2.1.5"
+  },
+  "optionalDependencies": {
+    "@adiwajshing/baileys": "^3.4.0",
+    "@chatdaddy/authentication-utils": "git+https://github.com/chatdaddy/authentication-utils"
+  },
+  "devDependencies": {
+    "@adiwajshing/baileys": "^3.4.0",
+    "@chatdaddy/authentication-utils": "git+https://github.com/chatdaddy/authentication-utils",
+    "@types/natural": "^2.1.1",
+    "@types/node": "^14.14.31",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.1.5"
   }
 }

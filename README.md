@@ -1,18 +1,18 @@
 # WhatsappInfoBot - A framework to build bots generally, but specifically on WhatsApp. 
 
-It uses [natural](https://github.com/NaturalNode/natural) (implemented by [@actuallysoham](https://github.com/actuallysoham)) to perform the natural language processing part & [Baileys](https://github.com/adiwajshing/Baileys) to interact with WhatsApp.
+The framework uses [natural](https://github.com/NaturalNode/natural) (implemented by [@actuallysoham](https://github.com/actuallysoham)) to perform the natural language processing part. It can [Baileys](https://github.com/adiwajshing/Baileys) to interact with WhatsApp or with [SendMammy]() webhooks.
 
 ## Install
 
-Install using npm: ` npm install github:adiwajshing/WhatsappInfoBot `
+1. Edge version: `yarn add github:adiwajshing/WhatsappInfoBot`
+2. Stable version: `yarn add @adiwajshing/whatsapp-info-bot`
 
 ## Building Intents
 
-The library follows a modular design. Every intent must be placed in separate files & in a single folder. So, you will have an `intents/` directory and in there a collection of intents that are either programmatic `.js` files or `.json` files. 
-
+The library follows a modular design.
 For example, a simple intent to answer queries about timings could look look like this:
 
-[`timings.json`](/Example/intents/timings.json)
+[`timings.json`](/src/example/intents/timings.json)
 ``` javascript
 {
     "keywords": ["timings","time","when","timing","schedule","open","close"], // the keywords to identify an intent
@@ -39,6 +39,14 @@ For example, a simple intent to answer queries about timings could look look lik
 }
 ```
 
+And use this intent like this:
+``` ts
+import timings from './timings.json'
+import { createLanguageProcessor } from '@adiwajshing/whatsapp-info-bot/LanguageProcessor'
+
+createLanguageProcessor([ timings ]).chat() // will start chat in terminal
+```
+
 So, if somebody asks the bot *ayy, till when does the parlour stay open?*, the bot will reply with:
     ```
     Timings for salon:
@@ -52,69 +60,84 @@ Sometimes, statically typing intents like this is too much of a pain or impossib
 
 For example, `weather.js` could look like the following:
 
-``` javascript
+``` ts
 
-module.exports = class {
-    constructor (processor) {
-        this.processor = processor // the instance of LanguageProcessor.js that created this instance
-        this.keywords = ["weather", "like"] // keywords to identify the intent
-        this.entities = {} // leave empty for now, you can fetch city names later and update the entities
-        this.meta = { // set some metadata
-            "userFacingName": ["weather"],
-            "description": "Ask about the weather in different cities",
-            "examples": ["weather in SF?", "new york weather", "listen fren, you better tell me what its like in Bombay"]
-        }
-        fetchCities ()
-    }
-    async fetchCities () {
+export default async () => {
+    const entities: {[_: string]: string} = {}
+
+    const fetchCities = async() => {
         // fetch the cities you can answer for, possibly using a REST API
         // fetch weather.com/rest or something
         // then call this function to finally update the entities, you can leave the values blank because the answer will be fetched
-        updateEntities ("weather", {"new york": "", "sf": "", "new delhi": "", "tokyo": ""}) 
+        entities = {"new york": "", "sf": "", "new delhi": "", "tokyo": ""}
     }
-    /**
-     * Async function that is called when somebody calls the `weather` command
-     * @param {string[]} entities - what city?
-     * @param {string} user - ID of the user
-     */
-    async answer (entities, user) {
-        // fetch the cities you can answer for, possibly using a REST API
-        // fetch weather.com/rest or something
-        return "lol I dont know"
+    await fetchCities()
+    return {
+        keywords: ['weather', 'like'],
+        entities: entities,
+        answer: (entities: string[], user: string) => {
+            // fetch the cities you can answer for, possibly using a REST API
+            // fetch weather.com/rest or something
+            return "lol I dont know"
+        },
+        meta: {
+            userFacingName: ["weather"],
+            description: "Ask about the weather in different cities",
+            examples: ["weather in SF?", "new york weather", "listen fren, you better tell me what its like in Bombay"]
+        }
     }
 }
+```
+
+This class intent can be used very similarly, like:
+``` ts
+import timings from './timings.json'
+import weather from './weather'
+import { createLanguageProcessor } from '@adiwajshing/whatsapp-info-bot/LanguageProcessor'
+
+(async () => {
+    createLanguageProcessor(
+        [ 
+            timings,
+            await weather()
+        ],
+        {
+            parsingFailedText: 'I dont understand <input>'
+        }
+    ).chat() // will start chat in terminal
+})()
 
 ```
 
-## Usage:
+## Usage over WhatsApp:
 
-1. Populate your intents folder with the intents you built. See this [example folder](/Example) for reference.
-2. To simply test your intents out in terminal, see [here](/Example/chat.js):
-    ``` javascript
-    const LanguageProcessor = require('WhatsAppInfoBot/LanguageProcessor.js')
-    const processor = new LanguageProcessor("./path/to/intents/", {parsingFailedText: "Oh no, I could not understand <input>"})
-    processor.chat() // chat in terminal
-    ```
-2. To run your bot on WhatsApp, see [here](/Example/index.js): 
-    ``` javascript
-        const LanguageProcessor = require("WhatsAppInfoBot/LanguageProcessor.js")
-        const WhatsAppResponder = require("WhatsAppInfoBot/Responder.js")
+### With Baileys
 
-        const metadata = {
-            parsingFailedText: "Oh no, I could not understand <input>", // what to say when the bot failed to understand what was being said
-            admins: [ // admins of this bot, optional, is used for the help.js intent
-                "23123123123",
-                "12123123123"
-            ],
-            maxRequestsPerSecond: 0.33, // max requests a user can make in a second
-            respondToPendingMessages: false,
-            authFile: "./Example/auth_info.json" // path to the file where the WhatsApp credentials will be stored
+``` ts
+import timings from './timings.json'
+import weather from './weather'
+import { createLanguageProcessor, createBaileysResponder } from '@adiwajshing/whatsapp-info-bot/LanguageProcessor'
+
+(async () => {
+    const languageProcessor = createLanguageProcessor(
+        [ 
+            timings,
+            await weather()
+        ],
+        {
+            parsingFailedText: 'I dont understand <input>'
         }
-        const processor = new LanguageProcessor("./Example/intents/", metadata) // create the processor
-        new Responder (processor.output, metadata).start () // start the WhatsApp Responder
-    ```
-    The first time you run the bot on WhatsApp, you will have to scan the QR code to enable WhatsApp Web.
-    Once you run this code, the responder will now connect to WhatsApp & it'll print out a QR code for you to scan with WhatsApp on your phone. 
-    Once you scan it with your phone, the bot will start recieving & responding to messages.
-    
-    **Note:** the bot will try & respond to all unread messages on your WhatsApp.
+    )
+
+    createBaileysResponder(
+        languageProcessor,
+        {
+            authFile: './auth_info.json'
+            respondToPendingMessages: false // will respond to unread messages
+        }
+    ).start() // will connect and start responding to messages
+})()
+```
+The first time you run the bot on WhatsApp, you will have to scan the QR code to enable WhatsApp Web.
+Once you run this code, the responder will now connect to WhatsApp & it'll print out a QR code for you to scan with WhatsApp on your phone. 
+Once you scan it with your phone, the bot will start recieving & responding to messages.

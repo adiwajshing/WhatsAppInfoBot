@@ -1,3 +1,4 @@
 node_modules/*
 Example/auth_info.json
 package-lock.json
+dist
