@@ -23,7 +23,7 @@
     "got": "^11.8.1",
     "natural": "^2.1.5"
   },
-  "optionalDependencies": {
+  "peerDependencies": {
     "@adiwajshing/baileys": "^3.4.0",
     "@chatdaddy/authentication-utils": "git+https://github.com/chatdaddy/authentication-utils"
   },
