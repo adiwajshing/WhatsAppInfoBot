@@ -10,8 +10,14 @@
     "build": "tsc",
     "prepare": "tsc"
   },
+  "files": [
+    "dist/*"
+  ],
   "keywords": [],
-  "author": "",
+  "repository": {
+    "url": "git@github.com:adiwajshing/WhatsAppInfoBot.git"
+  },
+  "author": "Adhiraj Singh",
   "license": "ISC",
   "dependencies": {
     "got": "^11.8.1",
