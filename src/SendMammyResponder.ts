@@ -1,15 +1,19 @@
+import type { WAMessage } from "@adiwajshing/baileys"
 import { LanguageProcessor, WAResponderParameters } from "./types"
-import { makeAuthenticationController } from '@chatdaddy/authentication-utils'
 import { onWAMessage } from "./WAResponder"
-import { WAMessage } from "@adiwajshing/baileys"
-import got from "got/dist/source"
+import got from "got"
 
 // serverless function for interacting with SendMammy APIs
 
 export type SendMammyResponderParameters = WAResponderParameters & {
 	refreshToken: string
 }
+
+const { makeAuthenticationController } = require('@chatdaddy/authentication-utils') || {}
 export const createSendMammyResponder = (processor: LanguageProcessor, metadata: SendMammyResponderParameters) => {
+	if(!makeAuthenticationController) {
+		throw new Error('Could not find @chatdaddy/authentication-utils')
+	}
 	const authController = makeAuthenticationController(
 		metadata.refreshToken,
 		'https://api-auth.chatdaddy.tech'

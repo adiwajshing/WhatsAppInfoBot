@@ -1,5 +1,5 @@
-import { LanguageProcessor, WAResponderParameters } from "./types";
 import type { WAConnection, WAMessage } from '@adiwajshing/baileys'
+import { LanguageProcessor, WAResponderParameters } from "./types";
 import { onChatUpdate, onWAMessage } from "./WAResponder";
 import { promises as fs } from "fs";
 
