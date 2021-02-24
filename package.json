@@ -7,7 +7,8 @@
   "scripts": {
     "test:chat": "ts-node src/example/intents --chat",
     "example": "ts-node src/example/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "tsc"
   },
   "keywords": [],
   "author": "",
