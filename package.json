@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prepack": "tsc",
+    "prepare": "tsc",
     "test:chat": "ts-node src/example/intents --chat",
     "example": "ts-node src/example/index.ts",
     "build": "tsc"
