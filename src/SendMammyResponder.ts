@@ -32,7 +32,7 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 						text,
 						scheduleAt: Math.floor(Date.now()/1000), // send message now
 						quotedID: quoted?.key.id, // quote the message
-						sendTyping: true, // send with typing indicator
+						withTyping: true, // send with typing indicator
 						randomizeMessage: false
 					}),
 					headers: {
