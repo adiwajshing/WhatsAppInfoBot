@@ -48,11 +48,10 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
         /** Extract the possible intents from the stemmed words */
         const getIntents = (stemmed_words: string[]) => {
             const intent_wordcloud = stemmed_words.filter(word => trie.contains(word))
-            return intent_wordcloud.flatMap(
-				word => intents.filter(({keywords}) => (
-					keywords.includes(word)
-				))
-			)
+			const wordCloudSet = new Set(intent_wordcloud.flat())
+            return intents.filter(({ keywords }) => (
+				!!keywords.find(keyword => wordCloudSet.has(keyword))
+			))
         }
         // remove all punctuations and unnecessary items
         input = input.toLowerCase().replace(/!|'|\?|\./g, '') 
