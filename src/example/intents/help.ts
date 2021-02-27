@@ -47,7 +47,7 @@ export default (intents: IntentData[]) => {
                 return helpAnswer
             } else {
                 return entities.map (str => {
-                    const data = intents.find(item => item.meta.userFacingName[0] === str)
+                    const data = intents.find(({ meta }) => meta?.userFacingName && meta.userFacingName[0] === str)
                     // get the actual name of the command
                     if (!data) { // if the command does not exist
                         throw "No help available for '" + str + "' :/"

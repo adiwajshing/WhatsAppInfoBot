@@ -14,7 +14,7 @@ export const chat = (output: (input: string) => Promise<string> | string) => {
 					const str = await output(ques)
 					console.log("response:\n" + str) 
 				} catch(error) {
-					console.log("fallback:\n" + error.message) 
+					console.log(`fallback:\n${error.message}\ntrace: ${error.stack}`) 
 				} finally {
 					getInput()
 				}
