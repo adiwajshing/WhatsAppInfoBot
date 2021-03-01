@@ -420,6 +420,11 @@
   resolved "https://registry.yarnpkg.com/@types/debug/-/debug-4.1.5.tgz#b14efa8852b7768d898906613c23f688713e02cd"
   integrity sha512-Q1y515GcOdTHgagaVFhHnIFQ38ygs/kmxdNpvpou+raI9UO3YZcHDngBSYKQklcKlvA7iuQlmIKbzvmxcOE9CQ==
 
+"@types/he@^1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@types/he/-/he-1.1.1.tgz#19e14033c4ee8f1a702c74dcc6182664839ac2b7"
+  integrity sha512-jpzrsR1ns0n3kyWt92QfOUQhIuJGQ9+QGa7M62rO6toe98woQjnsnzjdMtsQXCdvjjmqjS2ZBCC7xKw0cdzU+Q==
+
 "@types/http-cache-semantics@*":
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/@types/http-cache-semantics/-/http-cache-semantics-4.0.0.tgz#9140779736aa2655635ee756e2467d787cfe8a2a"
@@ -436,6 +441,11 @@
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/@types/long/-/long-4.0.1.tgz#459c65fa1867dafe6a8f322c4c51695663cc55e9"
   integrity sha512-5tXH6Bx/kNGd3MgffdmP4dy2Z+G4eaXw0SE81Tq3BNadtnMR5/ySMzX4SLEzHJzSmPNn4HIdpQsBvXMUykr58w==
+
+"@types/mustache@^4.1.1":
+  version "4.1.1"
+  resolved "https://registry.yarnpkg.com/@types/mustache/-/mustache-4.1.1.tgz#fcfa2db0cee6261e66f2437dc2fe71e26c7856b4"
+  integrity sha512-Sm0NWeLhS2QL7NNGsXvO+Fgp7e3JLHCO6RS3RCnfjAnkw6Y1bsji/AGfISdQZDIR/AeOyzkrxRk9jBkl55zdJw==
 
 "@types/natural@^2.1.1":
   version "2.1.1"
@@ -794,6 +804,11 @@ has-flag@^4.0.0:
   resolved "https://registry.yarnpkg.com/has-flag/-/has-flag-4.0.0.tgz#944771fd9c81c81265c4d6941860da06bb59479b"
   integrity sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==
 
+he@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/he/-/he-1.2.0.tgz#84ae65fa7eafb165fddb61566ae14baf05664f0f"
+  integrity sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==
+
 http-cache-semantics@^4.0.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/http-cache-semantics/-/http-cache-semantics-4.1.0.tgz#49e91c5cbf36c9b94bcfcd71c23d5249ec74e390"
@@ -1057,6 +1072,11 @@ music-metadata@^7.4.1:
     media-typer "^1.1.0"
     strtok3 "^6.0.8"
     token-types "^2.1.1"
+
+mustache@^4.1.0:
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/mustache/-/mustache-4.1.0.tgz#8c1b042238a982d2eb2d30efc6c14296ae3f699d"
+  integrity sha512-0FsgP/WVq4mKyjolIyX+Z9Bd+3WS8GOwoUTyKXT5cTYMGeauNTi2HPCwERqseC1IHAy0Z7MDZnJBfjabd4O8GQ==
 
 natural@^2.1.5:
   version "2.4.5"

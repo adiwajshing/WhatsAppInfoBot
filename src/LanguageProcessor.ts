@@ -1,7 +1,7 @@
 import natural from 'natural'
-import mustache from 'mustache'
 import { chat as cmdLineChat } from './LanguageProcessor.CMDLine'
 import { IntentData, LanguageProcessorMetadata } from './types'
+import { parseTemplate } from './utils'
 
 export const createLanguageProcessor = (intents: IntentData[], metadata: LanguageProcessorMetadata = {}) => {
 	const tokenizer = new natural.RegexpTokenizer ({pattern: /\ /})
@@ -91,9 +91,9 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 					else {
 						const mustacheParams = { entity: { key, value } }
 						if(typeof data.answer !== 'string') {
-							throw new Error(mustache.render(metadata.expectedStringAnswerText, mustacheParams))
+							throw new Error(parseTemplate(metadata.expectedStringAnswerText, mustacheParams))
 						}
-						return mustache.render(data.answer, mustacheParams)
+						return parseTemplate(data.answer, mustacheParams)
 					}
 				})
 			)
@@ -118,7 +118,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
             extractedIntents = extractedIntents.filter(intent => !intent.intent.isGreeting)
         } if (intentCount == 0) {
             throw new Error( 
-				mustache.render(metadata.parsingFailedText, { input })
+				parseTemplate(metadata.parsingFailedText, { input })
             )
         }
         // compute the output for each intent & map the errors as text

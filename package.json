@@ -22,6 +22,7 @@
   "dependencies": {
     "@types/mustache": "^4.1.1",
     "got": "^11.8.1",
+    "he": "^1.2.0",
     "mustache": "^4.1.0",
     "natural": "^2.1.5"
   },
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@adiwajshing/baileys": "^3.4.0",
     "@chatdaddy/authentication-utils": "git+https://github.com/chatdaddy/authentication-utils",
+    "@types/he": "^1.1.1",
     "@types/natural": "^2.1.1",
     "@types/node": "^14.14.31",
     "ts-node": "^9.1.1",
