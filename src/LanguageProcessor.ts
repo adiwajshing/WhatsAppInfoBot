@@ -54,7 +54,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 			))
         }
         // remove all punctuations and unnecessary items
-        input = input.toLowerCase().replace(/!|'|\?|\./g, '') 
+        input = input.toLowerCase().replace(/’|!|'|\?|\./g, '').trim()
 		// first, do a simple extract
         let extractedIntents = extractEntities(input, intents, 'equals') 
         if (extractedIntents.length == 0) { // if nothing was picked up
