@@ -11,6 +11,6 @@ export default createLanguageProcessor(
 		help([greeting, timings]) // generate help for our two intents
 	], 
 	{ 
-		parsingFailedText: "Sorry we couldn't understand <input>"
+		parsingFailedText: "Sorry we couldn't understand {{input}}"
 	}
 )

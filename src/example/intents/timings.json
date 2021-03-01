@@ -1,6 +1,6 @@
 {
     "keywords": ["timings","time","when","timing","schedule","open","close"],
-    "answer": "*Timings for <entity:key> are:*\n  <entity:value>",
+    "answer": "*Timings for {{entity.key}} are:*\n  {{entity.value}}",
     "entities": {
         "piano room": "6:00AM-12:00AM",
         "lunch": "12:15PM-02:30PM",

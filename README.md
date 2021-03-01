@@ -16,7 +16,7 @@ For example, a simple intent to answer queries about timings could look look lik
 ``` javascript
 {
     "keywords": ["timings","time","when","timing","schedule","open","close"], // the keywords to identify an intent
-    "answer": "*Timings for <entity:key> are:*\n <entity:value>", // the answer for this intent
+    "answer": "*Timings for {{entity.key}} are:*\n {{entity.value}}", // the answer for this intent
     "entities": { // list of things the bot can answer for the `timings` intent
         "piano room": "6:00AM-12:00AM",
         "lunch": "12:15PM-02:30PM",
@@ -53,7 +53,9 @@ So, if somebody asks the bot *ayy, till when does the parlour stay open?*, the b
     11:00AM-7:00PM, closed on tuesdays
     ```
 
-Here, `<entity:key>` maps onto the key, `salon` & `<entity:value>` maps onto the value, `11:00AM-7:00PM, closed on tuesdays`.
+Here, `{{entity.key}}` maps onto the key, `salon` & `{{entity.value}}` maps onto the value, `11:00AM-7:00PM, closed on tuesdays`. 
+Note: The syntax for these is the `Mustache` templating system. [Here](https://mustache.github.io/mustache.5.html) are the docs for the same.
+
 Moreover, because `parlour` is an alternate name for *salon*, the library maps `parlour` back to the true name `salon` and then responds.
 
 Sometimes, statically typing intents like this is too much of a pain or impossible to do. What if one wants to fetch the weather? Then, one could use a js class to describe the intent.
@@ -102,7 +104,7 @@ import { createLanguageProcessor } from '@adiwajshing/whatsapp-info-bot/Language
             await weather()
         ],
         {
-            parsingFailedText: 'I dont understand <input>'
+            parsingFailedText: 'I dont understand {{input}}'
         }
     ).chat() // will start chat in terminal
 })()
@@ -125,7 +127,7 @@ import { createLanguageProcessor, createBaileysResponder } from '@adiwajshing/wh
             await weather()
         ],
         {
-            parsingFailedText: 'I dont understand <input>'
+            parsingFailedText: 'I dont understand {{input}}'
         }
     )
 

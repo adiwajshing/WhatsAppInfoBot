@@ -1,4 +1,5 @@
 import natural from 'natural'
+import mustache from 'mustache'
 import { chat as cmdLineChat } from './LanguageProcessor.CMDLine'
 import { IntentData, LanguageProcessorMetadata } from './types'
 
@@ -73,7 +74,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
         if (typeof data.answer === 'function') { // if the intent requires a function to answer
             answer = await data.answer(entities, user)
 		} else if(Object.keys(entities).length === 0) {
-            if (data.answer.includes("<")) { // if the answer requires an entity to answer but no entities were parsed
+            if (data.answer.includes("{{")) { // if the answer requires an entity to answer but no entities were parsed
                 throw new Error(
 					metadata.entityRequiredText(Object.keys(data.entities))
 				)
@@ -81,18 +82,18 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
             answer = data.answer
         } else {
             answer = await Promise.all(
-				entities.map (entity => {
+				entities.map (key => {
 					// account for the fact that the 'value' may be a property
-					const entityObj = data.entities[entity]
+					const entityObj = data.entities[key]
 					const value = typeof entityObj === 'object' ? entityObj.value : entityObj
+					
 					if(typeof value === 'function') return value(entities, user)
 					else {
+						const mustacheParams = { entity: { key, value } }
 						if(typeof data.answer !== 'string') {
-							throw new Error() // TODO:
+							throw new Error(mustache.render(metadata.expectedStringAnswerText, mustacheParams))
 						}
-						return data.answer
-									.replace("<entity:key>", entity)
-									.replace("<entity:value>", value)
+						return mustache.render(data.answer, mustacheParams)
 					}
 				})
 			)
@@ -117,7 +118,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
             extractedIntents = extractedIntents.filter(intent => !intent.intent.isGreeting)
         } if (intentCount == 0) {
             throw new Error( 
-                metadata.parsingFailedText.replace("<input>", input) 
+				mustache.render(metadata.parsingFailedText, { input })
             )
         }
         // compute the output for each intent & map the errors as text
@@ -146,8 +147,11 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 			"However, I can answer for the following options:\n  " + availableEntities.join("\n  ")
 		)
 	}
+	if(!metadata.expectedStringAnswerText) {
+		metadata.expectedStringAnswerText = 'Expected a string for {{entity.key}}'
+	}
 	if(!metadata.parsingFailedText) {
-		metadata.parsingFailedText = 'Unknown command: <input>'
+		metadata.parsingFailedText = 'Unknown command: {{input}}'
 	}
 	if(process.argv.includes('--chat')) {
 		chat()

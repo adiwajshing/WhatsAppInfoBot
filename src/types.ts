@@ -22,6 +22,7 @@ export type IntentData = {
 }
 export type LanguageProcessorMetadata = {
 	parsingFailedText?: string
+	expectedStringAnswerText?: string
 	entityRequiredText?: (availableEntities: string[]) => string
 }
 export type LanguageProcessor = {
