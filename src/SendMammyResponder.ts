@@ -38,6 +38,11 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 					headers: {
 						'authorization': `Bearer ${token}`,
 						'content-type': 'application/json'
+					},
+					retry: {
+						limit: 5,
+						errorCodes: [ 'ENOTFOUND', 'ETIMEDOUT' ],
+						calculateDelay: () => 500
 					}
 				}
 			)
