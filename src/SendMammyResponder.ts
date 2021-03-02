@@ -25,7 +25,7 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 
 		const sendMessage = async(jid: string, text: string, quoted?: WAMessage) => {
 			const token = await authController.getToken(user.teamId)
-			await got.post(
+			const result = await got.post(
 				`https://api.sendmammy.com/messages/${jid}`,
 				{
 					body: JSON.stringify({
@@ -40,12 +40,17 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 						'content-type': 'application/json'
 					},
 					retry: {
-						limit: 5,
+						limit: 6,
+						statusCodes: [504, 503, 502, 408],
 						errorCodes: [ 'ENOTFOUND', 'ETIMEDOUT' ],
 						calculateDelay: () => 500
-					}
+					},
+					throwHttpErrors: false
 				}
 			)
+			if(![200, 409].includes(result.statusCode)) {
+				throw new Error(`error in pushing message: (${result.statusCode}) ${result.body}`)
+			}
 		}
 		
 		console.log('received web-hook for ' + user.teamId)
