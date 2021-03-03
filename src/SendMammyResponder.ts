@@ -25,15 +25,17 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 
 		const sendMessage = async(jid: string, text: string, quoted?: WAMessage) => {
 			const token = await authController.getToken(user.teamId)
+			const timestamp = Math.floor(Date.now()/1000)
 			const result = await got.post(
 				`https://api.sendmammy.com/messages/${jid}`,
 				{
 					body: JSON.stringify({
 						text,
-						scheduleAt: Math.floor(Date.now()/1000), // send message now
+						scheduleAt: timestamp, // send message now
 						quotedID: quoted?.key.id, // quote the message
 						withTyping: true, // send with typing indicator
-						randomizeMessage: false
+						randomizeMessage: false,
+						tag: timestamp.toString() // ensures the message is only sent out once 
 					}),
 					headers: {
 						'authorization': `Bearer ${token}`,
