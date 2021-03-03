@@ -43,7 +43,6 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 						limit: 6,
 						statusCodes: [504, 503, 502, 408],
 						errorCodes: [ 'ENOTFOUND', 'ETIMEDOUT' ],
-						calculateDelay: () => 500
 					},
 					throwHttpErrors: false
 				}
