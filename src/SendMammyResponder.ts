@@ -3,6 +3,7 @@ import type { AuthenticationController } from "@chatdaddy/authentication-utils"
 import { LanguageProcessor, WAResponderParameters } from "./types"
 import { onWAMessage } from "./WAResponder"
 import got from "got"
+import { URL } from "url"
 
 // serverless function for interacting with SendMammy APIs
 
@@ -17,8 +18,9 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 	}
 	const authController: AuthenticationController = makeAuthenticationController(
 		metadata.refreshToken,
-		'https://api-auth.chatdaddy.tech'
+		process.env.AUTH_SERVICE_URL || 'https://api-auth.chatdaddy.tech'
 	)
+	const sendMammyUrl = new URL(process.env.SENDMAMMY_URL || 'https://api.sendmammy.com')
 	return async (event: any) => {
 		const authToken = event.headers['Authorization']?.replace('Bearer ', '')
 		const user = await authController.authenticate(authToken)
@@ -27,7 +29,7 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 			const token = await authController.getToken(user.teamId)
 			const timestamp = Math.floor(Date.now()/1000)
 			const result = await got.post(
-				`https://api.sendmammy.com/messages/${jid}`,
+				new URL(`messages/${jid}`, sendMammyUrl),
 				{
 					body: JSON.stringify({
 						text,
@@ -42,7 +44,7 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 						'content-type': 'application/json'
 					},
 					retry: {
-						limit: 6,
+						limit: 10,
 						statusCodes: [504, 503, 502, 408],
 						errorCodes: [ 'ENOTFOUND', 'ETIMEDOUT' ],
 					},
