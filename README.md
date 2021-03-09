@@ -111,6 +111,31 @@ import { createLanguageProcessor } from '@adiwajshing/whatsapp-info-bot/Language
 
 ```
 
+### Regexp based intents
+
+Sometimes, you require more precise intent parsing that requires regular expressions. You can add that as well. 
+
+Example for a document access intent:
+``` ts
+export default {
+	regexps: [
+		/(?:i want to  |)access doc(?:ument|) ([a-z0-9]*)(?: and ([a-z0-9]*)|)/
+	],
+	entities: { },
+	answer: entities => {
+		return 'I see you want to access docs ' + entities.join(', ')
+	},
+	meta: {
+		userFacingName: [ 'documents', 'document access' ],
+		description: 'Access a document by ID. Of course, this is a test',
+		examples: [
+			'I want to access document 1234 and 5678',
+			'access doc 1234'
+		]
+	}
+}
+```
+
 ## Usage over WhatsApp:
 
 ### With Baileys

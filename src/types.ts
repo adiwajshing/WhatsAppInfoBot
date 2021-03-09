@@ -2,9 +2,13 @@ export type IntentAnswer = string | ((entities: string[], user: string) => Promi
 export type IntentEntities = {
 	[_: string]: IntentAnswer | { alternates?: string[], value: IntentAnswer }
 }
-export type IntentData = {
+export type IntentData = ({
 	/** The keywords required to recognize an intent */
 	keywords: string[]
+} | {
+	/** regular expressions to detect the intent */
+	regexps: (RegExp | string)[]
+}) & {
 	/** The entities in this intent mapped to their respective answers */
 	entities: IntentEntities
 	answer: IntentAnswer

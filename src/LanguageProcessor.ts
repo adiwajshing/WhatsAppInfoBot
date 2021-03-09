@@ -7,8 +7,11 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 	const tokenizer = new natural.RegexpTokenizer ({pattern: /\ /})
 	const trie = new natural.Trie(false)
 	// add keywords to trie
-	intents.forEach(intent => trie.addStrings(intent.keywords))
-	
+	intents.forEach(intent => {
+		if('keywords' in intent) {
+			trie.addStrings(intent.keywords)
+		}
+	})
 	/**
      * Extract all intents & corresponding entities from a given input text
      * @param input - the input text
@@ -31,7 +34,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 		)
         /**
          * Check if the input maps on exactly to some entity
-         * For eg. given intents "timings" & "meals" with entities "lunch" and input as "lunch", the function will return {timings: ["lunch"], meals: ["lunch"]} 
+         * For eg. if method=='equals' -- given intents "timings" & "meals" with entities "lunch" and input as "lunch", the function will return {timings: ["lunch"], meals: ["lunch"]} 
          */
         const extractEntities = (input: string, intents: IntentData[], method: 'includes' | 'equals') => (
 			intents.map(intent => {
@@ -46,34 +49,52 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
             const words = tokenizer.tokenize(input)
             return words.map(word => natural.PorterStemmer.stem(word))
         }
-        /** Extract the possible intents from the stemmed words */
-        const getIntents = (stemmed_words: string[]) => {
-            const intent_wordcloud = stemmed_words.filter(word => trie.contains(word))
-			const wordCloudSet = new Set(intent_wordcloud.flat())
-            return intents.filter(({ keywords }) => (
-				!!keywords.find(keyword => wordCloudSet.has(keyword))
-			))
-        }
+        /** Extract the possible keyword-based intents from the stemmed words */
+		const getPossibleIntents = (input: string) => {
+			const stemmedWords = stemInput(input)
+			const wordCloudSet = new Set(
+				stemmedWords.filter(word => trie.contains(word)).flat()
+			)
+			return intents.map(intent => {
+				let entities: string[]
+				if('keywords' in intent) {
+					if(!!intent.keywords.find(keyword => wordCloudSet.has(keyword))) {
+						entities = findEntities(intent, input, 'includes') 
+					}
+				} else {
+					for(const regexp of intent.regexps) {
+						const result = new RegExp(regexp, 'gi').exec(input)
+						entities = []
+						let i = 1
+						while(result[i]) {
+							entities.push(result[i])
+							i += 1
+						}
+					}
+				}
+				if(entities) {
+					return {
+						intent,
+						entities
+					}
+				}
+			})
+			.filter(Boolean)
+		}
         // remove all punctuations and unnecessary items
         input = input.toLowerCase().replace(/’|!|'|\?|\./g, '').trim()
 		// first, do a simple extract
-        let extractedIntents = extractEntities(input, intents, 'equals') 
+        let extractedIntents = extractEntities(input, intents, 'equals')
         if (extractedIntents.length == 0) { // if nothing was picked up
-            const stemmedWords = stemInput(input)
-            const intents = getIntents(stemmedWords)
-            extractedIntents = intents.map(intent => ({ 
-				intent, 
-				entities: findEntities(intent, input, 'includes') 
-			})).filter(Boolean)
+            extractedIntents = getPossibleIntents(input)
         }
-		
         return extractedIntents
     }
     const computeOutput = async(data: IntentData, entities: string[], user: string) => {    
 		let answer: string | string[]
         if (typeof data.answer === 'function') { // if the intent requires a function to answer
             answer = await data.answer(entities, user)
-		} else if(Object.keys(entities).length === 0) {
+		} else if(entities.length === 0) {
             if (data.answer.includes("{{")) { // if the answer requires an entity to answer but no entities were parsed
                 throw new Error(
 					metadata.entityRequiredText(Object.keys(data.entities))
@@ -109,7 +130,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
         const compileAnswer = (strings: string[]) => (
 			strings.length===1 ? 
 			strings[0] : 
-			strings.map ((str, i) => `*${i+1}.* ${str}`).join ("\n")
+			strings.map ((str, i) => `*${i+1}.* ${str}`).join("\n")
 		)
 
         let extractedIntents = extractIntentsAndOptions(input)
@@ -132,6 +153,8 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
             const strings = correctOutputs.map(output => (output as PromiseFulfilledResult<string>).value).flat()
             return compileAnswer(strings)
         } else {
+			//@ts-ignore
+			console.log(outputs.map(item => item.reason?.stack))
             const strings = outputs.map(output => (
 				//@ts-ignore
 				output.value || output.reason
@@ -144,7 +167,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 	if(!metadata.entityRequiredText) {
 		metadata.entityRequiredText = availableEntities => (
 			"Sorry, I can't answer this specific query.\n" + 
-			"However, I can answer for the following options:\n  " + availableEntities.join("\n  ")
+			"However, I can answer for the following options:\n  " + availableEntities?.join("\n  ")
 		)
 	}
 	if(!metadata.expectedStringAnswerText) {
