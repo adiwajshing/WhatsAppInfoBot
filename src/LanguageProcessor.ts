@@ -64,9 +64,11 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 				} else {
 					for(const regexp of intent.regexps) {
 						const result = new RegExp(regexp, 'gi').exec(input)
+						if(!result) continue
+
 						entities = []
 						let i = 1
-						while(result[i]) {
+						while(typeof result[i] !== 'undefined') {
 							entities.push(result[i])
 							i += 1
 						}
