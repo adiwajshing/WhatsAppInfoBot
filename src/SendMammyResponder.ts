@@ -37,7 +37,7 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 						quotedID: quoted?.key.id, // quote the message
 						withTyping: true, // send with typing indicator
 						randomizeMessage: false,
-						tag: timestamp.toString() // ensures the message is only sent out once 
+						tag: new Date().toString() + Math.floor(Math.random()*1000).toString() // ensures the message is only sent out once 
 					}),
 					headers: {
 						'authorization': `Bearer ${token}`,
