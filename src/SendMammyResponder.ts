@@ -52,7 +52,7 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 					throwHttpErrors: false
 				}
 			)
-			if(![200, 409].includes(result.statusCode)) {
+			if(![200].includes(result.statusCode)) {
 				throw new Error(`error in pushing message: (${result.statusCode}) ${result.body}`)
 			}
 		}
@@ -67,6 +67,40 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 			body.event === 'messages-post-sleep') {
 			await Promise.all(
 				body.data.messages.map((message: WAMessage) => (
+					onWAMessage(message, { metadata, processor, sendMessage })
+				))
+			)
+			return {
+				statusCode: 200,
+				body: JSON.stringify({ success: true })
+			}
+		} else if(body.event === 'initial-data-received') {
+			const token = await authController.getToken(user.teamId)
+			// get all unread chats
+			const result = await got.get(
+				new URL(`chats?unread=true`, sendMammyUrl),
+				{
+					headers: {
+						'authorization': `Bearer ${token}`,
+					}
+				}
+			)
+			const { chats }: { chats: any[] } = JSON.parse(result.body)
+			const messages: WAMessage[] = []
+			for(const chat of chats) {
+				let count = Math.max(chat.count, 1)
+				while(!!chat.messages.length && !!count) {
+					const last = chat.messages[chat.messages.length-1] as WAMessage
+					if(!last.key.fromMe) {
+						messages.push(last)
+					}
+					count -= 1
+					chat.messages = chat.messages.slice(0, -1)
+					if(!count) break
+				}
+			}
+			await Promise.all(
+				messages.map(message => (
 					onWAMessage(message, { metadata, processor, sendMessage })
 				))
 			)
