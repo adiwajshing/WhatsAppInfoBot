@@ -1,4 +1,4 @@
-import { randomBytes } from '@adiwajshing/baileys'
+import { randomBytes } from 'crypto'
 import natural from 'natural'
 import { chat as cmdLineChat } from './LanguageProcessor.CMDLine'
 import { InputContext, IntentData, LanguageProcessorMetadata } from './types'
