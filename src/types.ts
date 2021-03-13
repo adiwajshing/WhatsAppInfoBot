@@ -1,4 +1,9 @@
-export type IntentAnswer = string | ((entities: string[], user: string) => Promise<string> | string)
+export type InputContext = {
+	userId: string
+	messageId: string
+}
+
+export type IntentAnswer = string | ((entities: string[], ctx: InputContext) => Promise<string> | string)
 export type IntentEntities = {
 	[_: string]: IntentAnswer | { alternates?: string[], value: IntentAnswer }
 }
@@ -30,7 +35,7 @@ export type LanguageProcessorMetadata = {
 	entityRequiredText?: (availableEntities: string[]) => string
 }
 export type LanguageProcessor = {
-	output: (input: string, user: string) => Promise<string>
+	output: (input: string, ctx: InputContext) => Promise<string>
 }
 export type Responser = {
 	start: () => void | Promise<void>

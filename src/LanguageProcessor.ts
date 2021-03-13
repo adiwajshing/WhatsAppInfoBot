@@ -1,6 +1,7 @@
+import { randomBytes } from '@adiwajshing/baileys'
 import natural from 'natural'
 import { chat as cmdLineChat } from './LanguageProcessor.CMDLine'
-import { IntentData, LanguageProcessorMetadata } from './types'
+import { InputContext, IntentData, LanguageProcessorMetadata } from './types'
 import { parseTemplate } from './utils'
 
 export const createLanguageProcessor = (intents: IntentData[], metadata: LanguageProcessorMetadata = {}) => {
@@ -92,10 +93,10 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
         }
         return extractedIntents
     }
-    const computeOutput = async(data: IntentData, entities: string[], user: string) => {    
+    const computeOutput = async(data: IntentData, entities: string[], ctx: InputContext) => {    
 		let answer: string | string[]
         if (typeof data.answer === 'function') { // if the intent requires a function to answer
-            answer = await data.answer(entities, user)
+            answer = await data.answer(entities, ctx)
 		} else if(entities.length === 0) {
             if (data.answer.includes("{{")) { // if the answer requires an entity to answer but no entities were parsed
                 throw new Error(
@@ -110,7 +111,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 					const entityObj = data.entities[key]
 					const value = typeof entityObj === 'object' ? entityObj.value : entityObj
 					
-					if(typeof value === 'function') return value(entities, user)
+					if(typeof value === 'function') return value(entities, ctx)
 					else {
 						const mustacheParams = { entity: { key, value } }
 						if(typeof data.answer !== 'string') {
@@ -128,7 +129,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
      * @param user - ID of the user who is requesting the output
      * @returns the response
      */
-    const output = async (input: string, user: string) => {
+    const output = async (input: string, ctx: InputContext) => {
         const compileAnswer = (strings: string[]) => (
 			strings.length===1 ? 
 			strings[0] : 
@@ -146,7 +147,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
         }
         // compute the output for each intent & map the errors as text
         const tasks = extractedIntents.map(({ intent, entities }) => (
-			computeOutput(intent, entities, user)
+			computeOutput(intent, entities, ctx)
 		))
         const outputs = await Promise.allSettled(tasks)
         const correctOutputs = outputs.filter(output => output.status === 'fulfilled')
@@ -164,7 +165,15 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
             throw new Error( compileAnswer(strings) )
         }
     }
-	const chat = () => cmdLineChat(ip => output(ip, 'test'))
+	const chat = () => cmdLineChat(ip => (
+		output(
+			ip, 
+			{ 
+				userId: 'test', 
+				messageId: randomBytes(8).toString('hex') 
+			}
+		)
+	))
 
 	if(!metadata.entityRequiredText) {
 		metadata.entityRequiredText = availableEntities => (
