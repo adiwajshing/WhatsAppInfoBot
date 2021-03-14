@@ -99,7 +99,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
         if (typeof data.answer === 'function') { // if the intent requires a function to answer
             answer = await data.answer(entities, ctx)
 		} else if(entities.length === 0) {
-            if (data.answer.includes("{{")) { // if the answer requires an entity to answer but no entities were parsed
+            if (typeof data.answer === 'string' && data.answer.includes("{{")) { // if the answer requires an entity to answer but no entities were parsed
                 throw new Error(
 					metadata.entityRequiredText(Object.keys(data.entities))
 				)
@@ -110,7 +110,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 				entities.map (key => {
 					// account for the fact that the 'value' may be a property
 					const entityObj = data.entities[key]
-					const value = typeof entityObj === 'object' ? entityObj.value : entityObj
+					const value = typeof entityObj === 'object' && 'value' in entityObj ? entityObj.value : entityObj
 					
 					if(typeof value === 'function') return value(entities, ctx)
 					else {
