@@ -9,19 +9,19 @@ export type InputContext = {
 		remoteJid: string
 	} 
 }
-export type FileAnswer = { url: string }
+export type FileAnswer = { url: string, name?: string, mimetype?: string }
 export type Answer = string | { 
 	text?: string
 	image?: FileAnswer
 	video?: FileAnswer
 	audio?: FileAnswer
-	document?: FileAnswer
+	document?: FileAnswer & { name: string, mimetype: string }
 } | { 
 	template: string, 
 	parameters: { [_: string]: any } 
 }
 
-export type IntentAnswer = string | ((entities: string[], ctx: InputContext) => Promise<Answer> | Answer)
+export type IntentAnswer = Answer | ((entities: string[], ctx: InputContext) => Promise<Answer> | Answer)
 export type IntentEntities = {
 	[_: string]: IntentAnswer | { alternates?: string[], value: IntentAnswer }
 }
