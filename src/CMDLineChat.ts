@@ -1,6 +1,8 @@
+import { randomBytes } from 'crypto'
 import {createInterface} from 'readline'
+import { LanguageProcessor } from './types'
 
-export const chat = (output: (input: string) => Promise<string> | string) => {
+export const chat = ({output}: LanguageProcessor) => {
 	console.log("type 'q' to exit;")
 	const readline = createInterface({input: process.stdin, output: process.stdout})
 
@@ -11,8 +13,12 @@ export const chat = (output: (input: string) => Promise<string> | string) => {
 				process.exit(0)
 			} else {
 				try {
-					const str = await output(ques)
-					console.log("response:\n" + str) 
+					const ctx = { 
+						userId: 'test', 
+						messageId: randomBytes(8).toString('hex') 
+					}
+					const response = await output(ques, ctx)
+					console.log("response:\n", response) 
 				} catch(error) {
 					console.log(`fallback:\n${error.message}\ntrace: ${error.stack}`) 
 				} finally {

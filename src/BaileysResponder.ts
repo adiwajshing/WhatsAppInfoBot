@@ -1,5 +1,5 @@
-import type { WAConnection, WAMessage } from '@adiwajshing/baileys'
-import { LanguageProcessor, WAResponderParameters } from "./types";
+import type { MessageOptions, MessageType, WAConnection, WAMessage } from '@adiwajshing/baileys'
+import { Answer, LanguageProcessor, WAResponderParameters } from "./types";
 import { onChatUpdate, onWAMessage } from "./WAResponder";
 import { promises as fs } from "fs";
 
@@ -16,7 +16,37 @@ export const createBaileysResponder = (
 	const connection: WAConnection = new Baileys.WAConnection()
 	connection.autoReconnect = Baileys.ReconnectMode.onAllErrors
 
-	const sendMessage = async(jid: string, message: string, quoted: WAMessage) => {
+	const sendMessage = async(jid: string, answer: Answer, quoted: WAMessage) => {
+
+		let type: MessageType
+		let content: any
+		let options: Partial<MessageOptions> = {}
+		if(typeof answer === 'object' && 'template' in answer) {
+			throw new Error('Baileys responder does not support templates')
+		} else if(typeof answer === 'string') {
+			content = answer
+			type = Baileys.MessageType.conversation
+		} else {
+			if(answer.image) {
+				content = answer.image
+				options = { caption: answer.text }
+				type = Baileys.MessageType.imageMessage
+			} else if(answer.video) {
+				content = answer.video
+				options = { caption: answer.text }
+				type = Baileys.MessageType.videoMessage
+			} else if(answer.audio) {
+				content = answer.video
+				type = Baileys.MessageType.audioMessage
+			} else if(answer.document) {
+				content = answer.document
+				type = Baileys.MessageType.documentMessage
+			} else {
+				content = answer.text
+				type = Baileys.MessageType.conversation
+			}
+		}
+
 		await connection.updatePresence(jid, Baileys.Presence.available)
 		Baileys.delay (250)
 		
@@ -26,7 +56,7 @@ export const createBaileysResponder = (
 		await connection.updatePresence(jid, Baileys.Presence.composing)
 		Baileys.delay (2000)
 		
-		await connection.sendMessage(jid, message, Baileys.MessageType.text, { quoted })
+		await connection.sendMessage(jid, content, type, { quoted, ...options })
 	}
 
 	connection.on('chat-update', update => (

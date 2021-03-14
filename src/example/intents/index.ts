@@ -1,18 +1,20 @@
 import greeting from './greeting.json'
 import timings from './timings.json'
+import docAccess from './doc-access'
+import imgAccess from './img-access'
 import help from './help'
 
 import { createLanguageProcessor } from '../../LanguageProcessor'
-import docAccess from './doc-access'
 
 export default createLanguageProcessor(
 	[ 
 		greeting, 
 		timings, 
 		docAccess,
-		help([greeting, timings]) // generate help for our two intents
+		imgAccess,
+		help([greeting, timings, docAccess, imgAccess]) // generate help for our intents
 	], 
 	{ 
-		parsingFailedText: "Sorry we couldn't understand {{input}}"
+		parsingFailedText: "Sorry we couldn't understand '{{input}}'"
 	}
 )

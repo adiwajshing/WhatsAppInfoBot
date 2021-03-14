@@ -1,8 +1,9 @@
-import { randomBytes } from 'crypto'
 import natural from 'natural'
-import { chat as cmdLineChat } from './LanguageProcessor.CMDLine'
-import { InputContext, IntentData, LanguageProcessorMetadata } from './types'
+import { chat as cmdLineChat } from './CMDLineChat'
+import { Answer, InputContext, IntentData, LanguageProcessorMetadata } from './types'
 import { parseTemplate } from './utils'
+
+const OBJECT_KEYS = new Set([ 'template', 'image', 'video', 'audio', 'document' ])
 
 export const createLanguageProcessor = (intents: IntentData[], metadata: LanguageProcessorMetadata = {}) => {
 	const tokenizer = new natural.RegexpTokenizer ({pattern: /\ /})
@@ -94,7 +95,7 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
         return extractedIntents
     }
     const computeOutput = async(data: IntentData, entities: string[], ctx: InputContext) => {    
-		let answer: string | string[]
+		let answer: Answer | Answer[]
         if (typeof data.answer === 'function') { // if the intent requires a function to answer
             answer = await data.answer(entities, ctx)
 		} else if(entities.length === 0) {
@@ -130,17 +131,18 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
      * @returns the response
      */
     const output = async (input: string, ctx: InputContext) => {
-        const compileAnswer = (strings: string[]) => (
+        const compileAnswer = (strings: (string | { text: string })[]) => (
 			strings.length===1 ? 
-			strings[0] : 
-			strings.map ((str, i) => `*${i+1}.* ${str}`).join("\n")
-		)
+			//@ts-ignore
+			(strings[0].text || strings[0]) : 
+			//@ts-ignore
+			strings.map ((str, i) => `*${i+1}.* ${str.text || str}`).join("\n")
+		) as string
 
         let extractedIntents = extractIntentsAndOptions(input)
-        const intentCount = extractedIntents.length
         if (extractedIntents.length > 1) { // if more than one intent was recognized & a greeting was detected too
             extractedIntents = extractedIntents.filter(intent => !intent.intent.isGreeting)
-        } if (intentCount == 0) {
+        } if (extractedIntents.length === 0) {
             throw new Error( 
 				parseTemplate(metadata.parsingFailedText, { input })
             )
@@ -150,30 +152,30 @@ export const createLanguageProcessor = (intents: IntentData[], metadata: Languag
 			computeOutput(intent, entities, ctx)
 		))
         const outputs = await Promise.allSettled(tasks)
-        const correctOutputs = outputs.filter(output => output.status === 'fulfilled')
+        const correctOutputs = outputs.map(output => (
+			output.status === 'fulfilled' && output.value
+		)).filter(Boolean).flat()
+		const errorOutputs = outputs.map(output => (
+			output.status === 'rejected' && (output.reason?.message || output.reason) as string
+		)).filter(Boolean).flat()
 
-        if (correctOutputs.length > 0) {
-            const strings = correctOutputs.map(output => (output as PromiseFulfilledResult<string>).value).flat()
-            return compileAnswer(strings)
+        if (!!correctOutputs.length) {
+			// check if all answers are strings
+			const allStrings = !correctOutputs.find(item => (
+				typeof item === 'object' && 
+				!!Object.keys(item).filter(k => OBJECT_KEYS.has(k)).length
+			))
+			if(allStrings) {
+				return [
+					compileAnswer(correctOutputs as { text: string }[])
+				]
+			}
+            return correctOutputs
         } else {
-			//@ts-ignore
-			console.log(outputs.map(item => item.reason?.stack))
-            const strings = outputs.map(output => (
-				//@ts-ignore
-				output.value || output.reason
-			)).flat()
-            throw new Error( compileAnswer(strings) )
+            throw new Error(compileAnswer(errorOutputs))
         }
     }
-	const chat = () => cmdLineChat(ip => (
-		output(
-			ip, 
-			{ 
-				userId: 'test', 
-				messageId: randomBytes(8).toString('hex') 
-			}
-		)
-	))
+	const chat = () => cmdLineChat({ output })
 
 	if(!metadata.entityRequiredText) {
 		metadata.entityRequiredText = availableEntities => (

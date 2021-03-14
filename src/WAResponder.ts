@@ -1,10 +1,10 @@
-import { LanguageProcessor, WAResponderParameters } from "./types"
-import type { WAMessage, WAChatUpdate } from '@adiwajshing/baileys'
+import { Answer, InputContext, LanguageProcessor, WAResponderParameters } from "./types"
+import type { WAMessage, WAChatUpdate, proto } from '@adiwajshing/baileys'
 
 // file contains generic code to build a WA responder
 
 export type WAMessageParameters = {
-	sendMessage: (jid: string, text: string, quoting?: WAMessage) => Promise<void>
+	sendMessage: (jid: string, reply: Answer, quoting?: WAMessage) => Promise<void>
 	metadata: WAResponderParameters,
 	processor: LanguageProcessor
 }
@@ -46,7 +46,7 @@ export const onWAMessage = async(
 		// get timestamp of message
 		//@ts-ignore
 		const sendTime = message.messageTimestamp?.low || message.messageTimestamp
-		const diff = (new Date().getTime()/1000)-sendTime
+		const diff = (Date.now()/1000)-sendTime
 		if (diff > metadata.minimumDelayTriggerS) {
 			console.log (`been ${diff} seconds since message, responding with delay message to ${senderID}`)
 			// respond if not a group
@@ -54,19 +54,38 @@ export const onWAMessage = async(
 		}
 	}
 
-	let response
+	let responses: Answer[]
+	const ctx: InputContext = {
+		userId: senderID, 
+		messageId: message.key.id 
+	}
+	const [messageContent] = Object.values(message.message)
+	if(typeof messageContent === 'object' && messageContent.contextInfo) {
+		const contextInfo = messageContent.contextInfo as proto.IContextInfo
+		if(contextInfo.remoteJid && contextInfo.stanzaId) {
+			ctx.quotedMessage = {
+				id: contextInfo.stanzaId,
+				remoteJid: contextInfo.remoteJid
+			}
+		}
+	}
 	try {
-		response = await processor.output(
-			messageText, 
-			{  userId: senderID, messageId: message.key.id }
-		)
+		responses = await processor.output(messageText, ctx)
 	} catch (err) {
 		// do not respond if its a group
 		if (senderID.includes("@g.us")) return
-		response = (err.message || err).replace('Error: ', '')
+		responses = [
+			(err.message || err).replace('Error: ', '')
+		]
 	}
-	if (response) {
-		console.log(senderID + " sent message '" + messageText + "', responding with " + response)
-		await sendMessage(senderID, response, message)
+	if (responses) {
+		for(const response of responses) {
+			console.log({
+				message: 'replying',
+				context: ctx,
+				reply: response,
+			})
+			await sendMessage(ctx.userId, response, message)
+		}
 	}
 }

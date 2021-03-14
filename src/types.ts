@@ -1,9 +1,27 @@
 export type InputContext = {
+	/** the id of the user */
 	userId: string
+	/** id of the message sent */
 	messageId: string
+	/** info about the message that was quoted (if any) */
+	quotedMessage?: {
+		id: string
+		remoteJid: string
+	} 
+}
+export type FileAnswer = { url: string }
+export type Answer = string | { 
+	text?: string
+	image?: FileAnswer
+	video?: FileAnswer
+	audio?: FileAnswer
+	document?: FileAnswer
+} | { 
+	template: string, 
+	parameters: { [_: string]: any } 
 }
 
-export type IntentAnswer = string | ((entities: string[], ctx: InputContext) => Promise<string> | string)
+export type IntentAnswer = string | ((entities: string[], ctx: InputContext) => Promise<Answer> | Answer)
 export type IntentEntities = {
 	[_: string]: IntentAnswer | { alternates?: string[], value: IntentAnswer }
 }
@@ -35,7 +53,7 @@ export type LanguageProcessorMetadata = {
 	entityRequiredText?: (availableEntities: string[]) => string
 }
 export type LanguageProcessor = {
-	output: (input: string, ctx: InputContext) => Promise<string>
+	output: (input: string, ctx: InputContext) => Promise<Answer[]>
 }
 export type Responser = {
 	start: () => void | Promise<void>

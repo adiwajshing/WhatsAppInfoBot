@@ -1,6 +1,6 @@
 import type { WAMessage } from "@adiwajshing/baileys"
 import type { AuthenticationController } from "@chatdaddy/authentication-utils"
-import { LanguageProcessor, WAResponderParameters } from "./types"
+import { Answer, LanguageProcessor, WAResponderParameters } from "./types"
 import { onWAMessage } from "./WAResponder"
 import got from "got"
 import { URL } from "url"
@@ -25,14 +25,26 @@ export const createSendMammyResponder = (processor: LanguageProcessor, metadata:
 		const authToken = event.headers['Authorization']?.replace('Bearer ', '')
 		const user = await authController.authenticate(authToken)
 
-		const sendMessage = async(jid: string, text: string, quoted?: WAMessage) => {
+		const sendMessage = async(jid: string, answer: Answer, quoted?: WAMessage) => {
 			const token = await authController.getToken(user.teamId)
 			const timestamp = Math.floor(Date.now()/1000)
+			
+			let path = `messages/${jid}`
+			let body: any = {}
+			if(typeof answer === 'object' && 'template' in answer) {
+				path = `${path}/${answer.template}`
+				body = { parameters: answer.parameters }
+			} else if(typeof answer === 'string') {
+				body = { text: answer }
+			} else {
+				body = answer
+			}
+
 			const result = await got.post(
-				new URL(`messages/${jid}`, sendMammyUrl),
+				new URL(path, sendMammyUrl),
 				{
 					body: JSON.stringify({
-						text,
+						...body,
 						scheduleAt: timestamp, // send message now
 						quotedID: quoted?.key.id, // quote the message
 						withTyping: true, // send with typing indicator
