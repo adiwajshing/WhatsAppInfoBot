@@ -41,6 +41,8 @@ export const createBaileysResponder = (
 			} else if(answer.document) {
 				content = answer.document
 				type = Baileys.MessageType.documentMessage
+			} else if(answer.contacts) {
+				throw new Error('No support for contact messages right now')
 			} else {
 				content = answer.text
 				type = Baileys.MessageType.conversation
