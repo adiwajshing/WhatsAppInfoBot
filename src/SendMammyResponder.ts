@@ -88,7 +88,7 @@ export const createSendMammyResponder = (
 
 		const sendMessage = async(jid: string, answer: Answer, quoted?: WAMessage) => {
 			const token = await authController.getToken(user.teamId)
-			const result = await sendWAMessage({ jid, answer, quotedId: quoted.key.id, token })
+			const result = await sendWAMessage({ jid, answer, quotedId: quoted?.key.id, token })
 			return result
 		}
 		
