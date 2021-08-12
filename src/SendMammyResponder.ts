@@ -1,19 +1,18 @@
 import type { WAMessage } from "@adiwajshing/baileys"
-import type { AuthenticationController } from "@chatdaddy/authentication-utils"
-import { Answer, LanguageProcessor, WAResponderParameters } from "./types"
-import { onWAMessage } from "./WAResponder"
+import type { makeAccessTokenFactory, Scope, JWT } from "@chatdaddy/service-auth-client"
+import type { APIGatewayProxyEvent } from "aws-lambda"
 import got from "got"
 import { URL } from "url"
+import { Answer, LanguageProcessor, WAResponderParameters } from "./types"
+import { onWAMessage } from "./WAResponder"
 
 // serverless function for interacting with SendMammy APIs
 
 export const SENDMAMMY_URL = new URL(process.env.SENDMAMMY_URL || 'https://api.sendmammy.com')
 
-export type SendMammyResponderParameters = WAResponderParameters & ({
+export type SendMammyResponderParameters = WAResponderParameters & {
 	refreshToken: string
-} | {
-	authenticationController: AuthenticationController
-})
+}
 export type SendMessageOptions = {
 	jid: string 
 	answer: Answer
@@ -64,30 +63,29 @@ export const sendWAMessage = async({ jid, answer, quotedId, token }: SendMessage
 	}
 }
 
-const { makeAuthenticationController } = require('@chatdaddy/authentication-utils') || {}
+const authClient = require('@chatdaddy/service-auth-client')
 export const createSendMammyResponder = (
 	processor: LanguageProcessor, 
 	metadata: SendMammyResponderParameters
 ) => {
-	if(!makeAuthenticationController) {
-		throw new Error('Could not find @chatdaddy/authentication-utils')
+	if(!authClient) {
+		throw new Error('Could not find @chatdaddy/service-auth-client')
 	}
-	let authController: AuthenticationController
-	if('authenticationController' in metadata) {
-		authController = metadata.authenticationController
-	} else {
-		authController = makeAuthenticationController(
-			metadata.refreshToken,
-			process.env.AUTH_SERVICE_URL || 'https://api-auth.chatdaddy.tech'
-		)
-	}
+	const factory = authClient.makeAccessTokenFactory as typeof makeAccessTokenFactory
+	const Scopes = authClient.Scope as typeof Scope
+	const getToken = factory({
+		request: {
+			refreshToken: metadata.refreshToken,
+			scopes: [Scopes.MessagesSendToAll]
+		},
+	})
 
-	return async (event: any) => {
+	return async (event: APIGatewayProxyEvent) => {
 		const authToken = event.headers['Authorization']?.replace('Bearer ', '')
-		const user = await authController.authenticate(authToken)
+		const { user }: JWT = await authClient.verifyToken(authToken)
 
 		const sendMessage = async(jid: string, answer: Answer, quoted?: WAMessage) => {
-			const token = await authController.getToken(user.teamId)
+			const { token } = await getToken(user.teamId)
 			const result = await sendWAMessage({ jid, answer, quotedId: quoted?.key.id, token })
 			return result
 		}
@@ -110,7 +108,7 @@ export const createSendMammyResponder = (
 				body: JSON.stringify({ success: true })
 			}
 		} else if(body.event === 'initial-data-received') {
-			const token = await authController.getToken(user.teamId)
+			const token = await authClient.getToken(user.teamId)
 			// get all unread chats
 			const result = await got.get(
 				new URL(`chats?unread=true`, SENDMAMMY_URL),
