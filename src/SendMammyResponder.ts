@@ -76,7 +76,7 @@ export const createSendMammyResponder = (
 	const getToken = factory({
 		request: {
 			refreshToken: metadata.refreshToken,
-			scopes: [Scopes.MessagesSendToAll]
+			scopes: [Scopes.MessagesSendToAll, Scopes.ChatsAccessAll]
 		},
 	})
 
@@ -108,7 +108,7 @@ export const createSendMammyResponder = (
 				body: JSON.stringify({ success: true })
 			}
 		} else if(body.event === 'initial-data-received') {
-			const token = await authClient.getToken(user.teamId)
+			const {token} = await authClient.getToken(user.teamId)
 			// get all unread chats
 			const result = await got.get(
 				new URL(`chats?unread=true`, SENDMAMMY_URL),
