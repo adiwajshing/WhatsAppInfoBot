@@ -71,7 +71,7 @@ export const onWAMessage = async(
 	}
 	try {
 		responses = await processor.output(messageText, ctx)
-	} catch (err) {
+	} catch (err: any) {
 		// do not respond if its a group
 		if (senderID.includes("@g.us")) return
 		responses = [

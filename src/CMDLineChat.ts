@@ -19,7 +19,7 @@ export const chat = ({output}: LanguageProcessor) => {
 					}
 					const response = await output(ques, ctx)
 					console.log("response:\n", response) 
-				} catch(error) {
+				} catch(error: any) {
 					console.log(`fallback:\n${error.message}\ntrace: ${error.stack}`) 
 				} finally {
 					getInput()
