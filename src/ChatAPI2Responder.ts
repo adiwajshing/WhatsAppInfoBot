@@ -1,5 +1,5 @@
 import type { makeAccessTokenFactory, Scope, JWT } from "@chatdaddy/service-auth-client"
-import type { Message, MessageAttachment, MessageCompose } from "@chatdaddy/service-im-client"
+import { ChatsApi, Configuration, Message, MessageAttachment, MessageCompose } from "@chatdaddy/service-im-client"
 import type { APIGatewayProxyEvent } from "aws-lambda"
 import { Answer, LanguageProcessor, WAResponderParameters, FileAnswer } from "./types"
 
@@ -19,6 +19,8 @@ type ChatAPISendMessageOptions = {
 	answer: Answer
 	quotedId?: string
 }
+
+const DEFAULT_CHATS_FETCH_SIZE = 75
 
 const authClient = require('@chatdaddy/service-auth-client')
 export const createChatAPI2Responder = (
@@ -84,54 +86,84 @@ export const createChatAPI2Responder = (
 		await messagesApi.messagesPost(accountId, id, composeOpts)
 	}
 
-	return async (event: APIGatewayProxyEvent) => {
-		const authToken = event.headers['Authorization']?.replace('Bearer ', '')
-		const { user }: JWT = await authClient.verifyToken(authToken)
-		
-		console.log('received web-hook for ' + user.teamId)
+	const respondToMessage = async(msg: Message, teamId: string) => {
+		if(!msg.fromMe && !msg.action) {
+			console.log(`recv message on ${msg.accountId}/${msg.id} from "${msg.senderContactId}" -- "${msg.text?.slice(0, 150)}""`)
+			const text = msg.text
 
-		const body = JSON.parse(event.body)
-
-		console.log('event is ', body.event)
-
-		switch(body.event) {
-			case 'message-insert':
-				const msgs = body.data as Message[]
-				for(const msg of msgs) {
-					if(!msg.fromMe) {
-						console.log(`recv message on ${msg.accountId}/${msg.id} from "${msg.senderContactId}" -- "${msg.text?.slice(0, 150)}""`)
-						const text = msg.text
-
-						let responses: Answer[]
-						try {
-							responses = await processor.output(text, { messageId: msg.id, userId: msg.senderContactId })
-						} catch (err: any) {
-							// do not respond if its a group
-							if (msg.chatId.includes("@g.us")) continue
-							responses = [
-								(err.message || err).replace('Error: ', '')
-							]
-						}
-						if (responses) {
-							for(const response of responses) {
-								console.log({
-									message: 'replying',
-									reply: response,
-								})
-								await sendWAMessage({
-									id: msg.chatId,
-									accountId: msg.accountId,
-									teamId: user.teamId,
-									answer: response,
-									quotedId: msg.id
-								})
-							}
-						}
-					}
+			let responses: Answer[]
+			try {
+				responses = await processor.output(text, { messageId: msg.id, userId: msg.senderContactId })
+			} catch (err: any) {
+				// do not respond if its a group
+				if (msg.chatId.includes("@g.us")) return
+				responses = [
+					(err.message || err).replace('Error: ', '')
+				]
+			}
+			if (responses) {
+				for(const response of responses) {
+					console.log({
+						message: 'replying',
+						reply: response,
+					})
+					await sendWAMessage({
+						id: msg.chatId,
+						accountId: msg.accountId,
+						teamId: teamId,
+						answer: response,
+						quotedId: msg.id
+					})
 				}
-			break
+			}
+		}
+	}
+
+	const respondToUnrespondedChats = async(teamId: string) => {
+		const chatsApi = new ChatsApi(new Configuration({
+			accessToken: () => getToken(teamId).then(t => t.token),
+			basePath: metadata.apiUrl
+		}))
+
+		const { data: { chats } } = await chatsApi.chatsGet(DEFAULT_CHATS_FETCH_SIZE, undefined, undefined, undefined, undefined, undefined, undefined, false)
+		console.log(`got ${chats.length} chats`)
+
+		for(const chat of chats) {
+			const msg = chat.messages?.[0]
+			if(msg) {
+				try {
+					await respondToMessage(msg, teamId)
+				} catch(error) {
+					console.error(`error in responding to (${msg.chatId}, ${msg.id}): ${error}`)
+				}
+			}
 		}
 
-		return { statusCode: 204 }
+		console.log(`responded to ${chats.length} chats`)
+	}
+
+	return {
+		handler: async (event: APIGatewayProxyEvent) => {
+			const authToken = event.headers['Authorization']?.replace('Bearer ', '')
+			const { user }: JWT = await authClient.verifyToken(authToken)
+			
+			console.log('received web-hook for ' + user.teamId)
+	
+			const body = JSON.parse(event.body)
+	
+			console.log('event is ', body.event)
+	
+			switch(body.event) {
+				case 'message-insert':
+					const msgs = body.data as Message[]
+					for(const msg of msgs) {
+						
+					}
+				break
+			}
+	
+			return { statusCode: 204 }
+		},
+		respondToUnrespondedChats
 	}
 }
