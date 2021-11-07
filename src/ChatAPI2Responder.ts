@@ -157,7 +157,7 @@ export const createChatAPI2Responder = (
 				case 'message-insert':
 					const msgs = body.data as Message[]
 					for(const msg of msgs) {
-						
+						await respondToMessage(msg, user.teamId)
 					}
 				break
 			}
