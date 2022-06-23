@@ -20,7 +20,7 @@
   "author": "Adhiraj Singh",
   "license": "ISC",
   "dependencies": {
-    "got": "^11.8.1",
+    "got": "^11.8.5",
     "he": "^1.2.0",
     "mustache": "^4.1.0",
     "natural": "^2.1.5"
