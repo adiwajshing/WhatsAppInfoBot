@@ -27,13 +27,11 @@
   },
   "peerDependencies": {
     "@adiwajshing/baileys": "^3.4.0",
-    "@chatdaddy/service-auth-client": "git+https://github.com/chatdaddy/service-auth-client",
-    "@chatdaddy/service-im-client": "git+https://github.com/chatdaddy/service-im-client"
+    "@chatdaddy/client": "git+https://github.com/chatdaddy/typescript-client"
   },
   "devDependencies": {
     "@adiwajshing/baileys": "^3.4.0",
-    "@chatdaddy/service-auth-client": "git+https://github.com/chatdaddy/service-auth-client",
-    "@chatdaddy/service-im-client": "git+https://github.com/chatdaddy/service-im-client",
+    "@chatdaddy/client": "git+https://github.com/chatdaddy/typescript-client",
     "@types/aws-lambda": "^8.10.82",
     "@types/he": "^1.1.1",
     "@types/mustache": "^4.1.1",

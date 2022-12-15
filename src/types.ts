@@ -16,7 +16,7 @@ export type Answer = string | {
 	video?: FileAnswer
 	audio?: FileAnswer
 	document?: FileAnswer & { name: string, mimetype: string }
-	contacts?: { displayName: string, phoneNumber: string }[]
+	contact?: { displayName: string, phoneNumber: string }[]
 } | { 
 	template: string, 
 	parameters: { [_: string]: any } 

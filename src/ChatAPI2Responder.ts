@@ -1,5 +1,4 @@
-import type { makeAccessTokenFactory, Scope, JWT } from "@chatdaddy/service-auth-client"
-import { ChatsApi, Configuration, Message, MessageAttachment, MessageCompose } from "@chatdaddy/service-im-client"
+import type { makeAccessTokenFactory, Message, MessageAttachment, MessageCompose, Configuration } from "@chatdaddy/client"
 import type { APIGatewayProxyEvent } from "aws-lambda"
 import { Answer, LanguageProcessor, WAResponderParameters, FileAnswer } from "./types"
 
@@ -7,7 +6,6 @@ import { Answer, LanguageProcessor, WAResponderParameters, FileAnswer } from "./
 
 export type ChatApi2ResponderParameters = WAResponderParameters & {
 	refreshToken: string
-	apiUrl: string
 }
 
 type ChatAPISendMessageOptions = {
@@ -22,29 +20,44 @@ type ChatAPISendMessageOptions = {
 
 const DEFAULT_CHATS_FETCH_SIZE = 75
 
-const authClient = require('@chatdaddy/service-auth-client')
+const ATTACH_TYPES = ['image', 'video', 'audio', 'document', 'contact'] as const
+
 export const createChatAPI2Responder = (
 	processor: LanguageProcessor, 
 	metadata: ChatApi2ResponderParameters
 ) => {
-	if(!authClient) {
-		throw new Error('Could not find @chatdaddy/service-auth-client')
-	}
-	const factory = authClient.makeAccessTokenFactory as typeof makeAccessTokenFactory
-	const Scopes = authClient.Scope as typeof Scope
-	const getToken = factory({
-		request: {
-			refreshToken: metadata.refreshToken,
-			scopes: [Scopes.MessagesSendToAll, Scopes.ChatsAccessAll]
-		},
-	})
+	let getToken: ReturnType<typeof makeAccessTokenFactory>
 
-	const sendWAMessage = async({ id, accountId, answer, quotedId, teamId }: ChatAPISendMessageOptions) => {
-		const { MessagesApi, Configuration, MessageComposeStatusEnum } = await import('@chatdaddy/service-im-client')
-		const messagesApi = new MessagesApi(new Configuration({ 
-			basePath: metadata.apiUrl, 
-			accessToken: () => getToken(teamId).then(t => t.token) 
-		}))
+	return {
+		handler: async (event: APIGatewayProxyEvent) => {
+			const { verifyToken } = await import('@chatdaddy/client')
+			
+			const authToken = event.headers['Authorization']?.replace('Bearer ', '')
+			const { user } = await verifyToken(authToken)
+			
+			console.log('received web-hook for ' + user.teamId)
+	
+			const body = JSON.parse(event.body)
+	
+			console.log('event is ', body.event)
+	
+			switch(body.event) {
+				case 'message-insert':
+					const msgs = body.data as Message[]
+					for(const msg of msgs) {
+						await respondToMessage(msg, user.teamId)
+					}
+				break
+			}
+	
+			return { statusCode: 204 }
+		},
+		respondToUnrespondedChats
+	}
+
+	async function sendWAMessage({ id, accountId, answer, quotedId, teamId }: ChatAPISendMessageOptions) {
+		const { MessagesApi } = await import('@chatdaddy/client')
+		const messagesApi = new MessagesApi(await getConfiguration(teamId))
 
 		const composeOpts: MessageCompose = {
 			text: '',
@@ -56,7 +69,6 @@ export const createChatAPI2Responder = (
 				id: quotedId,
 				chatId: id
 			},
-			status: MessageComposeStatusEnum.Pending,
 		}
 
 		if(typeof answer === 'object' && 'template' in answer) {
@@ -66,11 +78,10 @@ export const createChatAPI2Responder = (
 		} else {
 			const attachments: MessageAttachment[] = []
 			composeOpts.text = answer.text || ''
-			for(const key of ['image', 'video', 'audio', 'document', 'contacts'] as const) {
+			for(const key of ATTACH_TYPES) {
 				const item = answer[key] as FileAnswer
 				if(item) {
 					attachments.push({
-						//@ts-expect-error
 						type: key,
 						url: item.url,
 						mimetype: item.mimetype,
@@ -83,10 +94,14 @@ export const createChatAPI2Responder = (
 			}
 		}
 
-		await messagesApi.messagesPost(accountId, id, composeOpts)
+		await messagesApi.messagesPost({
+			accountId,
+			chatId: id,
+			messageCompose: composeOpts,
+		})
 	}
 
-	const respondToMessage = async(msg: Message, teamId: string) => {
+	async function respondToMessage(msg: Message, teamId: string) {
 		if(!msg.fromMe && !msg.action) {
 			console.log(`recv message on ${msg.accountId}/${msg.id} from "${msg.senderContactId}" -- "${msg.text?.slice(0, 150)}""`)
 			const text = msg.text
@@ -119,13 +134,16 @@ export const createChatAPI2Responder = (
 		}
 	}
 
-	const respondToUnrespondedChats = async(teamId: string) => {
-		const chatsApi = new ChatsApi(new Configuration({
-			accessToken: () => getToken(teamId).then(t => t.token),
-			basePath: metadata.apiUrl
-		}))
+	async function respondToUnrespondedChats(teamId: string) {
+		const { ChatsApi } = await import('@chatdaddy/client')
+		const chatsApi = new ChatsApi(await getConfiguration(teamId))
 
-		const { data: { chats } } = await chatsApi.chatsGet(DEFAULT_CHATS_FETCH_SIZE, undefined, undefined, undefined, undefined, undefined, undefined, false)
+		const { data: { chats } } = await chatsApi.chatsGet(
+			{
+				count: DEFAULT_CHATS_FETCH_SIZE,
+				lastMessageFromMe: false,
+			}
+		)
 		console.log(`got ${chats.length} chats`)
 
 		for(const chat of chats) {
@@ -142,28 +160,26 @@ export const createChatAPI2Responder = (
 		console.log(`responded to ${chats.length} chats`)
 	}
 
-	return {
-		handler: async (event: APIGatewayProxyEvent) => {
-			const authToken = event.headers['Authorization']?.replace('Bearer ', '')
-			const { user }: JWT = await authClient.verifyToken(authToken)
-			
-			console.log('received web-hook for ' + user.teamId)
-	
-			const body = JSON.parse(event.body)
-	
-			console.log('event is ', body.event)
-	
-			switch(body.event) {
-				case 'message-insert':
-					const msgs = body.data as Message[]
-					for(const msg of msgs) {
-						await respondToMessage(msg, user.teamId)
-					}
-				break
+	async function getConfiguration(teamId: string): Promise<Configuration> {
+		if(!getToken) {
+			const { makeAccessTokenFactory } = await import('@chatdaddy/client')
+
+			getToken = makeAccessTokenFactory({
+				request: {
+					refreshToken: metadata.refreshToken,
+					scopes: [
+						'MESSAGES_SEND_TO_ALL',
+						'CHATS_ACCESS_ALL',
+					]
+				},
+			})
+		}
+
+		return {
+			accessToken: () => getToken(teamId).then(t => t.token),
+			isJsonMime() {
+				return true
 			}
-	
-			return { statusCode: 204 }
-		},
-		respondToUnrespondedChats
+		}
 	}
 }

@@ -32,19 +32,13 @@
   dependencies:
     regenerator-runtime "^0.13.4"
 
-"@chatdaddy/service-auth-client@git+https://github.com/chatdaddy/service-auth-client":
+"@chatdaddy/client@git+https://github.com/chatdaddy/typescript-client":
   version "0.1.0"
-  resolved "git+https://github.com/chatdaddy/service-auth-client#ef8578fe20daf52430a0aace7c16b905d50ced4a"
+  resolved "git+https://github.com/chatdaddy/typescript-client#692c93543da4bcd8425f0c4c1baaa3a55106b828"
   dependencies:
     axios "^0.21.1"
   optionalDependencies:
     jsonwebtoken "^8.5.1"
-
-"@chatdaddy/service-im-client@git+https://github.com/chatdaddy/service-im-client":
-  version "0.1.0"
-  resolved "git+https://github.com/chatdaddy/service-im-client#cfc339cdc35135e0ccb0e6d8ea961aca1ff4540d"
-  dependencies:
-    axios "^0.21.1"
 
 "@hapi/bourne@^2.0.0":
   version "2.0.0"
