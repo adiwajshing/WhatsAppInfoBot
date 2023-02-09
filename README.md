@@ -1,6 +1,6 @@
 # WhatsappInfoBot - A framework to build bots generally, but specifically on WhatsApp. 
 
-The framework uses [natural](https://github.com/NaturalNode/natural) (implemented by [@actuallysoham](https://github.com/actuallysoham)) to perform the natural language processing part. It can [Baileys](https://github.com/adiwajshing/Baileys) to interact with WhatsApp or with [SendMammy]() webhooks.
+The framework uses [natural](https://github.com/NaturalNode/natural) (implemented by [@actuallysoham](https://github.com/actuallysoham)) to perform the natural language processing part. It can use [Baileys](https://github.com/adiwajshing/Baileys) to interact with WhatsApp or with [SendMammy]() webhooks.
 
 ## Install
 
